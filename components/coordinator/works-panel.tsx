@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -16,6 +16,22 @@ export function WorksPanel() {
   const [searchTerm, setSearchTerm] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
   const [editingWork, setEditingWork] = useState<Work | null>(null);
+
+  useEffect(() => {
+    const fetchWorks = async () => {
+      const response = await fetch("http://localhost:3000/api/works", {
+        credentials: "include", // IMPORTANTE
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+      const data = await response.json();
+      console.log("Works fetched:", data);
+      setWorks(data.data.works);
+    };
+
+    fetchWorks();
+  }, []);
 
   const filteredWorks = useMemo(() => {
     if (!searchTerm.trim()) return works;
@@ -52,8 +68,8 @@ export function WorksPanel() {
                 finalized: data.finalized ?? w.finalized,
                 updatedAt: new Date(),
               }
-            : w
-        )
+            : w,
+        ),
       );
     } else {
       const newWork: Work = {

@@ -12,8 +12,9 @@ interface WorkCardProps {
 }
 
 export function WorkCard({ work, onEdit, onClick }: WorkCardProps) {
-  const formatDate = (date: Date) => {
-    return date.toLocaleDateString("es-ES", {
+  const formatDate = (date: Date | string) => {
+    const dateObj = typeof date === "string" ? new Date(date) : date;
+    return dateObj.toLocaleDateString("es-ES", {
       day: "2-digit",
       month: "short",
       year: "numeric",
