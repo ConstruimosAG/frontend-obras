@@ -19,15 +19,31 @@ export function WorksPanel() {
 
   useEffect(() => {
     const fetchWorks = async () => {
-      const response = await fetch("http://localhost:3000/api/works", {
-        credentials: "include", // IMPORTANTE
-        headers: {
-          "Content-Type": "application/json",
-        },
-      });
-      const data = await response.json();
-      console.log("Works fetched:", data);
-      setWorks(data.data.works);
+      try {
+        const baseUrl = process.env.NEXT_PUBLIC_BACKEND_URL;
+
+        if (!baseUrl) {
+          throw new Error("NEXT_PUBLIC_BACKEND_URL is not defined");
+        }
+
+        const response = await fetch(`${baseUrl}/api/works`, {
+          credentials: "include",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        });
+
+        if (!response.ok) {
+          throw new Error(`Error fetching works: ${response.status}`);
+        }
+
+        const { data } = await response.json();
+        console.log("Works fetched:", data);
+
+        setWorks(data.works);
+      } catch (error) {
+        console.error(error);
+      }
     };
 
     fetchWorks();
