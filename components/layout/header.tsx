@@ -41,7 +41,7 @@ export function Header() {
           className="gap-2 text-red-600 hover:bg-red-100 hover:text-red-700 hover:cursor-pointer"
         >
           <LogOut className="h-4 w-4" />
-          <span className="hidden sm:inline">Logout</span>
+          <span className="hidden sm:inline">Cerrar Sesión</span>
         </Button>
       </div>
     </header>

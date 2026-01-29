@@ -123,3 +123,21 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Scrollbar para Chrome */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: #f97416dc; /* orange-500 */
+  border-radius: 8px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: #ea5a0cd2; /* orange-600 */
+}

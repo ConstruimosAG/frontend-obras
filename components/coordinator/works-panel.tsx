@@ -1,58 +1,29 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { WorkCard } from "./work-card";
 import { WorkModal } from "./work-modal";
-import { mockWorks } from "@/lib/mock-data";
 import type { Work } from "@/lib/types";
+import { useWorks } from "@/hooks/work/useWorks";
+import { Loader2 } from "lucide-react";
 
-export function WorksPanel() {
+export function WorksPanel({ coordinator = true }: { coordinator?: boolean }) {
   const router = useRouter();
-  const [works, setWorks] = useState<Work[]>([]);
+  const { works, loading, submitting, createWork, updateWork } = useWorks();
   const [searchTerm, setSearchTerm] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
   const [editingWork, setEditingWork] = useState<Work | null>(null);
 
-  useEffect(() => {
-    const fetchWorks = async () => {
-      try {
-        const baseUrl = process.env.NEXT_PUBLIC_BACKEND_URL;
-
-        if (!baseUrl) {
-          throw new Error("NEXT_PUBLIC_BACKEND_URL is not defined");
-        }
-
-        const response = await fetch(`${baseUrl}/api/works`, {
-          credentials: "include",
-          headers: {
-            "Content-Type": "application/json",
-          },
-        });
-
-        if (!response.ok) {
-          throw new Error(`Error fetching works: ${response.status}`);
-        }
-
-        const { data } = await response.json();
-        console.log("Works fetched:", data);
-
-        setWorks(data.works);
-      } catch (error) {
-        console.error(error);
-      }
-    };
-
-    fetchWorks();
-  }, []);
-
   const filteredWorks = useMemo(() => {
     if (!searchTerm.trim()) return works;
     const term = searchTerm.toLowerCase();
-    return works.filter((work) => work.code.toLowerCase().includes(term));
+    return works.filter((work: Work) =>
+      String(work.code).toLowerCase().includes(term),
+    );
   }, [works, searchTerm]);
 
   const handleCreateWork = () => {
@@ -65,50 +36,39 @@ export function WorksPanel() {
     setModalOpen(true);
   };
 
-  const handleWorkClick = (workId: string) => {
-    router.push(`/coordinator/works/${workId}`);
+  const handleWorkClick = (workId: string | number) => {
+    coordinator ? router.push(`/coordinator/works/${workId}`) : router.push(`/admin/works/${workId}`);
   };
 
-  const handleSubmit = (data: {
+  const handleSubmit = async (data: {
     code?: string;
     quotationDeadline: string;
     finalized?: boolean;
   }) => {
     if (editingWork) {
-      setWorks((prev) =>
-        prev.map((w) =>
-          w.id === editingWork.id
-            ? {
-                ...w,
-                quotationDeadline: new Date(data.quotationDeadline),
-                finalized: data.finalized ?? w.finalized,
-                updatedAt: new Date(),
-              }
-            : w,
-        ),
-      );
+      // update
+      await updateWork(editingWork.id, {
+        quotationDeadline: data.quotationDeadline,
+        finalized: data.finalized,
+      });
     } else {
-      const newWork: Work = {
-        id: Date.now(),
+      // create
+      await createWork({
         code: data.code!,
-        finalized: false,
-        quotationDeadline: new Date(data.quotationDeadline),
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
-      setWorks((prev) => [newWork, ...prev]);
+        quotationDeadline: data.quotationDeadline,
+      });
     }
+    // cerrar modal lo hace el WorkModal después del await
   };
 
   return (
     <div className="space-y-4 sm:space-y-6">
-      {/* Header */}
       <div>
         <h1 className="text-2xl sm:text-3xl font-bold text-foreground">
           Panel de Obras
         </h1>
         <p className="text-sm sm:text-base text-muted-foreground mt-1">
-          Gestiona las obras para el coordinador del proyecto. Haz clic en una
+          Gestiona las obras. Haz clic en una
           obra para ver sus ítems.
         </p>
       </div>
@@ -123,23 +83,33 @@ export function WorksPanel() {
             className="pl-9"
           />
         </div>
-        <Button
-          onClick={handleCreateWork}
-          className="w-full sm:w-auto bg-orange-500 hover:bg-orange-600 text-white"
-        >
-          <Plus className="h-4 w-4" />
-          Crear Obra
-        </Button>
+
+        <div className="flex gap-2 items-center">
+          {coordinator && (<Button
+            onClick={handleCreateWork}
+            className="w-full sm:w-auto bg-orange-500 hover:bg-orange-600 text-white flex items-center gap-2"
+          >
+            <Plus className="h-4 w-4" />
+            Crear Obra
+          </Button>)}
+
+          {loading && (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Loader2 className="animate-spin h-4 w-4" />
+              Cargando...
+            </div>
+          )}
+        </div>
       </div>
 
       {filteredWorks.length > 0 ? (
         <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {filteredWorks.map((work) => (
+          {filteredWorks.map((work: Work) => (
             <WorkCard
               key={work.id}
               work={work}
               onEdit={handleEditWork}
-              onClick={handleWorkClick}
+              onClick={() => handleWorkClick(work.id)}
             />
           ))}
         </div>
@@ -147,6 +117,8 @@ export function WorksPanel() {
         <div className="text-center py-8 sm:py-12 text-muted-foreground">
           {searchTerm ? (
             <p>No se encontraron obras que coincidan con "{searchTerm}"</p>
+          ) : loading ? (
+            <p>Cargando obras...</p>
           ) : (
             <p>No hay obras registradas. Crea una nueva para comenzar.</p>
           )}
@@ -158,6 +130,7 @@ export function WorksPanel() {
         onOpenChange={setModalOpen}
         work={editingWork}
         onSubmit={handleSubmit}
+        isSubmitting={submitting}
       />
     </div>
   );

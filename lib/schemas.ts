@@ -1,52 +1,54 @@
 import { z } from "zod";
 
-// Schema for creating a new work
+// Esquema para crear un nuevo trabajo
 export const workSchema = z.object({
   code: z
     .string()
-    .min(2, "Code must have at least 2 characters")
-    .max(20, "Code cannot exceed 20 characters")
+    .min(2, "El código debe tener al menos 2 caracteres")
+    .max(20, "El código no puede exceder los 20 caracteres")
     .regex(
       /^[A-Za-z0-9_-]+$/,
-      "Code can only contain letters, numbers, hyphens and underscores"
+      "El código solo puede contener letras, números, guiones y guiones bajos",
     ),
   quotationDeadline: z
     .string()
-    .min(1, "Quotation deadline is required")
+    .min(1, "La fecha límite de cotización es obligatoria")
     .refine((date) => new Date(date) > new Date(), {
-      message: "Quotation deadline must be after today",
+      message: "La fecha límite de cotización debe ser posterior a hoy",
     }),
 });
 
-// Schema for editing a work (without code)
+// Esquema para editar un trabajo (sin código)
 export const workEditSchema = z.object({
-  quotationDeadline: z.string().min(1, "Quotation deadline is required"),
+  quotationDeadline: z
+    .string()
+    .min(1, "La fecha límite de cotización es obligatoria"),
   finalized: z.boolean().optional(),
 });
 
-// Schema for creating an item
+// Esquema para crear un ítem
 export const itemSchema = z.object({
   description: z
     .string()
-    .min(10, "Description must have at least 10 characters")
-    .max(500, "Description cannot exceed 500 characters"),
-//   personnelRequired: z.record(z.unknown()).default({}),
-//   extras: z.record(z.unknown()).default({}),
+    .min(10, "La descripción debe tener al menos 10 caracteres")
+    .max(500, "La descripción no puede exceder los 500 caracteres"),
+  //   personnelRequired: z.record(z.unknown()).default({}),
+  //   extras: z.record(z.unknown()).default({}),
   estimatedExecutionTime: z
     .number()
-    .min(1, "Estimated time must be at least 1 hour")
+    .min(1, "El tiempo estimado debe ser de al menos 1 hora")
     .optional(),
 });
 
-// Schema for editing an item
+// Esquema para editar un ítem
 export const itemEditSchema = z.object({
   description: z
     .string()
-    .min(10, "Description must have at least 10 characters")
-    .max(500, "Description cannot exceed 500 characters"),
+    .min(10, "La descripción debe tener al menos 10 caracteres")
+    .max(500, "La descripción no puede exceder los 500 caracteres"),
   estimatedExecutionTime: z
     .number()
-    .min(1, "Estimated time must be at least 1 hour")
+    .min(1, "El tiempo estimado debe ser de al menos 1 hora")
     .optional(),
 });
 

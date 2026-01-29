@@ -17,6 +17,7 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { workSchema, workEditSchema } from "@/lib/schemas";
 import type { Work } from "@/lib/types";
+import { Loader2 } from "lucide-react";
 
 interface WorkModalProps {
   open: boolean;
@@ -26,7 +27,8 @@ interface WorkModalProps {
     code?: string;
     quotationDeadline: string;
     finalized?: boolean;
-  }) => void;
+  }) => Promise<void> | void;
+  isSubmitting?: boolean;
 }
 
 export function WorkModal({
@@ -34,6 +36,7 @@ export function WorkModal({
   onOpenChange,
   work,
   onSubmit,
+  isSubmitting = false,
 }: WorkModalProps) {
   const isEditing = !!work;
   const [formData, setFormData] = useState({
@@ -44,11 +47,13 @@ export function WorkModal({
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
+    if (!open) return;
+
     if (work) {
       setFormData({
         code: work.code,
         quotationDeadline: work.quotationDeadline
-          ? work.quotationDeadline.toISOString().split("T")[0]
+          ? new Date(work.quotationDeadline).toISOString().split("T")[0]
           : "",
         finalized: work.finalized,
       });
@@ -62,8 +67,9 @@ export function WorkModal({
     setErrors({});
   }, [work, open]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setErrors({});
 
     try {
       if (isEditing) {
@@ -71,7 +77,8 @@ export function WorkModal({
           quotationDeadline: formData.quotationDeadline,
           finalized: formData.finalized,
         });
-        onSubmit({
+
+        await onSubmit({
           quotationDeadline: formData.quotationDeadline,
           finalized: formData.finalized,
         });
@@ -80,11 +87,13 @@ export function WorkModal({
           code: formData.code,
           quotationDeadline: formData.quotationDeadline,
         });
-        onSubmit({
+
+        await onSubmit({
           code: formData.code,
           quotationDeadline: formData.quotationDeadline,
         });
       }
+
       onOpenChange(false);
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -95,7 +104,10 @@ export function WorkModal({
           }
         });
         setErrors(newErrors);
+        return;
       }
+      // si la onSubmit lanza error (fetch), dejamos que el hook lo maneje con toast
+      console.error(error);
     }
   };
 
@@ -121,10 +133,11 @@ export function WorkModal({
                 id="code"
                 value={formData.code}
                 onChange={(e) =>
-                  setFormData({ ...formData, code: e.target.value })
+                  setFormData((prev) => ({ ...prev, code: e.target.value }))
                 }
                 placeholder="Ej: PCN-2026-001"
                 aria-invalid={!!errors.code}
+                disabled={isSubmitting}
               />
               {errors.code && (
                 <p className="text-sm text-destructive">{errors.code}</p>
@@ -151,9 +164,13 @@ export function WorkModal({
               type="date"
               value={formData.quotationDeadline}
               onChange={(e) =>
-                setFormData({ ...formData, quotationDeadline: e.target.value })
+                setFormData((prev) => ({
+                  ...prev,
+                  quotationDeadline: e.target.value,
+                }))
               }
               aria-invalid={!!errors.quotationDeadline}
+              disabled={isSubmitting}
             />
             {errors.quotationDeadline && (
               <p className="text-sm text-destructive">
@@ -168,8 +185,12 @@ export function WorkModal({
                 id="finalized"
                 checked={formData.finalized}
                 onCheckedChange={(checked) =>
-                  setFormData({ ...formData, finalized: checked as boolean })
+                  setFormData((prev) => ({
+                    ...prev,
+                    finalized: checked as boolean,
+                  }))
                 }
+                disabled={isSubmitting}
               />
               <Label
                 htmlFor="finalized"
@@ -186,10 +207,16 @@ export function WorkModal({
               variant="outline"
               onClick={() => onOpenChange(false)}
               className="w-full sm:w-auto"
+              disabled={isSubmitting}
             >
               Cancelar
             </Button>
-            <Button type="submit" className="w-full sm:w-auto bg-orange-500 hover:bg-orange-600 text-white">
+            <Button
+              type="submit"
+              className="w-full sm:w-auto bg-orange-500 hover:bg-orange-600 text-white flex items-center justify-center gap-2"
+              disabled={isSubmitting}
+            >
+              {isSubmitting && <Loader2 className="animate-spin h-4 w-4" />}
               {isEditing ? "Guardar cambios" : "Crear obra"}
             </Button>
           </DialogFooter>
