@@ -15,6 +15,7 @@ import {
   Check,
   CircleX,
   Link2,
+  FileText,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -36,9 +37,16 @@ import type { Item, Work } from "@/lib/types";
 interface ItemsTableProps {
   work: Work;
   coordinator?: boolean;
+  path?: string;
+  management?: boolean;
 }
 
-export function ItemsTable({ work, coordinator = true }: ItemsTableProps) {
+export function ItemsTable({
+  work,
+  coordinator = true,
+  path = "admin",
+  management = false
+}: ItemsTableProps) {
   const router = useRouter();
   const [searchTerm, setSearchTerm] = useState("");
   const [editModalOpen, setEditModalOpen] = useState(false);
@@ -53,7 +61,6 @@ export function ItemsTable({ work, coordinator = true }: ItemsTableProps) {
   const generateExternalToken = (item: Item) => {
     const timestamp = new Date(item.createdAt).getTime();
     const data = `${timestamp}-${item.id}`;
-    // Usar btoa para navegadores (equivalente a Buffer.from().toString('base64'))
     return btoa(data).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
   };
 
@@ -64,6 +71,11 @@ export function ItemsTable({ work, coordinator = true }: ItemsTableProps) {
 
     navigator.clipboard.writeText(link);
     toast.success("Link copiado al portapapeles");
+  };
+
+  // Verificar si un item tiene cotización finalizada
+  const hasFinishedQuotation = (item: Item) => {
+    return item.quoteItems?.some((quote: any) => quote.quoteWorkId !== null);
   };
 
   const filteredItems = useMemo(() => {
@@ -80,7 +92,6 @@ export function ItemsTable({ work, coordinator = true }: ItemsTableProps) {
 
   const formatDate = (date: string | Date) => {
     const d = typeof date === "string" ? new Date(date) : date;
-
     return d.toLocaleDateString("es-ES", {
       day: "2-digit",
       month: "short",
@@ -90,7 +101,6 @@ export function ItemsTable({ work, coordinator = true }: ItemsTableProps) {
 
   const formatDateLong = (date: string | Date) => {
     const d = typeof date === "string" ? new Date(date) : date;
-
     return d.toLocaleDateString("es-ES", {
       day: "2-digit",
       month: "long",
@@ -125,7 +135,13 @@ export function ItemsTable({ work, coordinator = true }: ItemsTableProps) {
   };
 
   const handleViewDetails = (itemId: number) => {
-    coordinator ? router.push(`/coordinator/works/${work.id}/items/${itemId}`) : router.push(`/admin/works/${work.id}/items/${itemId}`)
+    coordinator
+      ? router.push(`/coordinator/works/${work.id}/items/${itemId}`)
+      : router.push(`/${path}/works/${work.id}/items/${itemId}`);
+  };
+
+  const handleViewQuotations = (itemId: number) => {
+    router.push(`/${path}/works/${work.id}/items/${itemId}/quotations`);
   };
 
   const handleCreateItem = () => {
@@ -172,7 +188,7 @@ export function ItemsTable({ work, coordinator = true }: ItemsTableProps) {
         <Button
           variant="ghost"
           size="icon"
-          onClick={() => router.push("/coordinator")}
+          onClick={() => router.push(`/${path}`)}
           className="shrink-0 mt-1"
         >
           <ArrowLeft className="h-5 w-5" />
@@ -197,13 +213,15 @@ export function ItemsTable({ work, coordinator = true }: ItemsTableProps) {
             className="pl-9"
           />
         </div>
-        {coordinator && (<Button
-          onClick={handleCreateItem}
-          className="w-full sm:w-auto bg-orange-500 hover:bg-orange-600 text-white"
-        >
-          <Plus className="h-4 w-4" />
-          Crear Ítem
-        </Button>)}
+        {coordinator && (
+          <Button
+            onClick={handleCreateItem}
+            className="w-full sm:w-auto bg-orange-500 hover:bg-orange-600 text-white"
+          >
+            <Plus className="h-4 w-4" />
+            Crear Ítem
+          </Button>
+        )}
       </div>
 
       {filteredItems.length > 0 ? (
@@ -227,68 +245,257 @@ export function ItemsTable({ work, coordinator = true }: ItemsTableProps) {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredItems.map((item: Item) => (
-                  <TableRow key={item.id}>
-                    <TableCell className="font-medium whitespace-nowrap">
-                      #{item.id}
-                    </TableCell>
-                    <TableCell className="max-w-62.5">
-                      <p className="truncate">{item.description}</p>
-                    </TableCell>
-                    <TableCell className="text-sm whitespace-nowrap">
-                      {formatDateLong(item.createdAt)}
-                    </TableCell>
-                    <TableCell className="whitespace-nowrap">
-                      {formatEstimatedTime(item.estimatedExecutionTime)}
-                    </TableCell>
-                    <TableCell className="max-w-37.5">
-                      <p className="truncate">
-                        {getPersonnelDisplay(item.personnelRequired)}
+                {filteredItems.map((item: Item) => {
+                  const isFinished = hasFinishedQuotation(item);
+
+                  return (
+                    <TableRow key={item.id}>
+                      <TableCell className="font-medium whitespace-nowrap">
+                        #{item.id}
+                      </TableCell>
+                      <TableCell className="max-w-62.5">
+                        <p className="truncate">{item.description}</p>
+                      </TableCell>
+                      <TableCell className="text-sm whitespace-nowrap">
+                        {formatDateLong(item.createdAt)}
+                      </TableCell>
+                      <TableCell className="whitespace-nowrap">
+                        {formatEstimatedTime(item.estimatedExecutionTime)}
+                      </TableCell>
+                      <TableCell className="max-w-37.5">
+                        <p className="truncate">
+                          {getPersonnelDisplay(item.personnelRequired)}
+                        </p>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex gap-1">
+                          <Badge
+                            variant={item.active ? "default" : "secondary"}
+                            className={
+                              item.active
+                                ? "bg-green-500 hover:bg-green-600"
+                                : "bg-red-500 hover:bg-red-600 text-white"
+                            }
+                          >
+                            {item.active ? "Activo" : "Inactivo"}
+                          </Badge>
+                          {management && isFinished && (
+                            <Badge className="bg-blue-500 hover:bg-blue-600">
+                              Finalizado
+                            </Badge>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center justify-end gap-1">
+                          {/* Botón Ver Cotizaciones (solo para management) */}
+                          {management && !isFinished && (
+                            <Button
+                              variant="default"
+                              size="sm"
+                              onClick={() => handleViewQuotations(item.id)}
+                              className="h-8 px-2 bg-orange-500 hover:bg-orange-600"
+                              title="Ver cotizaciones"
+                            >
+                              <FileText className="h-3.5 w-3.5" />
+                              <span className="sr-only">Ver cotizaciones</span>
+                            </Button>
+                          )}
+
+                          {/* Botón Ver Detalles (siempre visible) */}
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleViewDetails(item.id)}
+                            className="h-8 px-2"
+                          >
+                            <Eye className="h-3.5 w-3.5" />
+                            <span className="sr-only">Ver detalles</span>
+                          </Button>
+
+                          {/* Botones de admin (no visibles para management) */}
+                          {!management && (
+                            <>
+                              {/* Link externo (solo admin, no coordinator) */}
+                              {!coordinator && (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => copyExternalLink(item)}
+                                  className="h-8 px-2 text-blue-600 hover:text-blue-700"
+                                  title="Copiar link para contratista externo"
+                                >
+                                  <Link2 className="h-3.5 w-3.5" />
+                                  <span className="sr-only">Copiar link externo</span>
+                                </Button>
+                              )}
+
+                              {/* Editar */}
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleEdit(item)}
+                                className="h-8 px-2"
+                              >
+                                <Pencil className="h-3.5 w-3.5" />
+                                <span className="sr-only">Editar</span>
+                              </Button>
+
+                              {/* Botones de activar/desactivar y eliminar (solo admin) */}
+                              {!coordinator && (
+                                <>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => handleDelete(item)}
+                                    className="h-8 px-2 text-destructive hover:text-destructive"
+                                  >
+                                    {item.active ? (
+                                      <X className="h-4 w-4" />
+                                    ) : (
+                                      <Check className="h-4 w-4" />
+                                    )}
+                                    <span className="sr-only">Desactivar</span>
+                                  </Button>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => handlePermanentDelete(item)}
+                                    className="h-8 px-2 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                    disabled={submitting}
+                                  >
+                                    <CircleX className="h-4 w-4" />
+                                    <span className="sr-only">
+                                      Eliminar permanentemente
+                                    </span>
+                                  </Button>
+                                </>
+                              )}
+                            </>
+                          )}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </div>
+
+          {/* Card view for mobile */}
+          <div className="md:hidden space-y-3">
+            {filteredItems.map((item: Item) => {
+              const isFinished = hasFinishedQuotation(item);
+
+              return (
+                <div
+                  key={item.id}
+                  className="border rounded-lg bg-card p-4 space-y-3"
+                >
+                  {/* Card header */}
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2 mb-2 flex-wrap">
+                        <Badge className="bg-purple-700">#{item.id}</Badge>
+                        <Badge
+                          variant={item.active ? "default" : "secondary"}
+                          className={
+                            item.active
+                              ? "bg-green-500 hover:bg-green-600"
+                              : "bg-red-500 hover:bg-red-600 text-white"
+                          }
+                        >
+                          {item.active ? "Activo" : "Inactivo"}
+                        </Badge>
+                        {management && isFinished && (
+                          <Badge className="bg-blue-500 hover:bg-blue-600">
+                            Finalizado
+                          </Badge>
+                        )}
+                      </div>
+                      <p className="text-sm text-foreground line-clamp-2">
+                        {item.description}
                       </p>
-                    </TableCell>
-                    <TableCell>
-                      <Badge
-                        variant={item.active ? "default" : "secondary"}
-                        className={
-                          item.active
-                            ? "bg-green-500 hover:bg-green-600"
-                            : "bg-red-500 hover:bg-red-600 text-white"
-                        }
-                      >
-                        {item.active ? "Activo" : "Inactivo"}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center justify-end gap-1">
+                    </div>
+                  </div>
+
+                  {/* Item info */}
+                  <div className="grid grid-cols-1 gap-2 text-sm text-muted-foreground">
+                    <div className="flex items-center gap-2">
+                      <Calendar className="h-4 w-4 text-primary shrink-0" />
+                      <span className="truncate">{formatDate(item.createdAt)}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Clock className="h-4 w-4 text-primary shrink-0" />
+                      <span>
+                        {formatEstimatedTime(item.estimatedExecutionTime)}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <User className="h-4 w-4 text-primary shrink-0" />
+                      <span className="truncate">
+                        {getPersonnelDisplay(item.personnelRequired)}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Action buttons */}
+                  <div className="flex items-center gap-2 pt-2 border-t flex-wrap">
+                    {management ? (
+                      <>
+                        {/* Botones para management */}
+                        {!isFinished && (
+                          <Button
+                            variant="default"
+                            size="sm"
+                            onClick={() => handleViewQuotations(item.id)}
+                            className="flex-1 bg-orange-500 hover:bg-orange-600"
+                          >
+                            <FileText className="h-4 w-4 mr-1" />
+                            Cotizaciones
+                          </Button>
+                        )}
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleViewDetails(item.id)}
+                          className="flex-1"
+                        >
+                          <Eye className="h-4 w-4 mr-1" />
+                          Detalles
+                        </Button>
+                      </>
+                    ) : (
+                      <>
+                        {/* Botones para admin/coordinator */}
                         {!coordinator && (
                           <Button
                             variant="outline"
                             size="sm"
                             onClick={() => copyExternalLink(item)}
-                            className="h-8 px-2 text-blue-600 hover:text-blue-700"
-                            title="Copiar link para contratista externo"
+                            className="flex-1 text-blue-600 hover:text-blue-700"
                           >
-                            <Link2 className="h-3.5 w-3.5" />
-                            <span className="sr-only">Copiar link externo</span>
+                            <Link2 className="h-4 w-4 mr-1" />
+                            Link
                           </Button>
                         )}
                         <Button
                           variant="outline"
                           size="sm"
                           onClick={() => handleEdit(item)}
-                          className="h-8 px-2"
+                          className="flex-1"
                         >
-                          <Pencil className="h-3.5 w-3.5" />
-                          <span className="sr-only">Editar</span>
+                          <Pencil className="h-4 w-4 mr-1" />
+                          Editar
                         </Button>
                         <Button
                           variant="outline"
                           size="sm"
                           onClick={() => handleViewDetails(item.id)}
-                          className="h-8 px-2"
+                          className="flex-1"
                         >
-                          <Eye className="h-3.5 w-3.5" />
-                          <span className="sr-only">Ver detalles</span>
+                          <Eye className="h-4 w-4 mr-1" />
+                          Detalles
                         </Button>
                         {!coordinator && (
                           <>
@@ -296,146 +503,35 @@ export function ItemsTable({ work, coordinator = true }: ItemsTableProps) {
                               variant="outline"
                               size="sm"
                               onClick={() => handleDelete(item)}
-                              className="h-8 px-2 text-destructive hover:text-destructive"
+                              className={
+                                item.active
+                                  ? "text-destructive hover:text-destructive"
+                                  : "text-green-500 hover:text-green-600"
+                              }
                             >
                               {item.active ? (
                                 <X className="h-4 w-4" />
                               ) : (
                                 <Check className="h-4 w-4" />
                               )}
-                              <span className="sr-only">Desactivar</span>
                             </Button>
                             <Button
                               variant="outline"
                               size="sm"
                               onClick={() => handlePermanentDelete(item)}
-                              className="h-8 px-2 text-destructive hover:text-destructive hover:bg-destructive/10"
+                              className="text-destructive hover:text-destructive hover:bg-destructive/10"
                               disabled={submitting}
                             >
                               <CircleX className="h-4 w-4" />
-                              <span className="sr-only">Eliminar permanentemente</span>
                             </Button>
                           </>
                         )}
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-
-          {/* Card view for mobile */}
-          <div className="md:hidden space-y-3">
-            {filteredItems.map((item: Item) => (
-              <div
-                key={item.id}
-                className="border rounded-lg bg-card p-4 space-y-3"
-              >
-                {/* Card header */}
-                <div className="flex items-start justify-between gap-2">
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2 mb-2">
-                      <Badge className="bg-purple-700">#{item.id}</Badge>
-                      <Badge
-                        variant={item.active ? "default" : "secondary"}
-                        className={
-                          item.active
-                            ? "bg-green-500 hover:bg-green-600"
-                            : "bg-red-500 hover:bg-red-600 text-white"
-                        }
-                      >
-                        {item.active ? "Activo" : "Inactivo"}
-                      </Badge>
-                    </div>
-                    <p className="text-sm text-foreground line-clamp-2">
-                      {item.description}
-                    </p>
+                      </>
+                    )}
                   </div>
                 </div>
-
-                {/* Item info */}
-                <div className="grid grid-cols-1 gap-2 text-sm text-muted-foreground">
-                  <div className="flex items-center gap-2">
-                    <Calendar className="h-4 w-4 text-primary shrink-0" />
-                    <span className="truncate">
-                      {formatDate(item.createdAt)}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Clock className="h-4 w-4 text-primary shrink-0" />
-                    <span>
-                      {formatEstimatedTime(item.estimatedExecutionTime)}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <User className="h-4 w-4 text-primary shrink-0" />
-                    <span className="truncate">
-                      {getPersonnelDisplay(item.personnelRequired)}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Action buttons */}
-                <div className="flex items-center gap-2 pt-2 border-t">
-                  {!coordinator && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => copyExternalLink(item)}
-                      className="flex-1 text-blue-600 hover:text-blue-700"
-                    >
-                      <Link2 className="h-4 w-4 mr-1" />
-                    </Button>
-                  )}
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleEdit(item)}
-                    className="flex-1"
-                  >
-                    <Pencil className="h-4 w-4 mr-1" />
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleViewDetails(item.id)}
-                    className="flex-1"
-                  >
-                    <Eye className="h-4 w-4 mr-1" />
-                  </Button>
-                  {!coordinator && (
-                    <>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleDelete(item)}
-                        className={
-                          item.active
-                            ? "text-destructive hover:text-destructive"
-                            : "text-green-500 hover:text-green-600"
-                        }
-                      >
-                        {item.active ? (
-                          <X className="h-4 w-4" />
-                        ) : (
-                          <Check className="h-4 w-4" />
-                        )}
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handlePermanentDelete(item)}
-                        className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                        disabled={submitting}
-                      >
-                        <CircleX className="h-4 w-4" />
-                      </Button>
-                    </>
-                  )}
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </>
       ) : (
@@ -443,7 +539,10 @@ export function ItemsTable({ work, coordinator = true }: ItemsTableProps) {
           {searchTerm ? (
             <p>No se encontraron ítems que coincidan con "{searchTerm}"</p>
           ) : (
-            <p>No hay ítems registrados. {coordinator && "Crea uno nuevo para comenzar."}</p>
+            <p>
+              No hay ítems registrados.{" "}
+              {coordinator && "Crea uno nuevo para comenzar."}
+            </p>
           )}
         </div>
       )}

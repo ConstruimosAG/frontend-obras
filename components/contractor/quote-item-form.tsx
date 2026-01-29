@@ -352,8 +352,6 @@ export function QuoteItemForm({
       return acc;
     }, {} as Record<string, any>);
 
-    // Calcular managementPercentage (administración + contingencias, sin utilidad)
-    const managementPercentage = administrationPerc + contingenciesPerc;
 
     const payload = {
       itemId: Number(item.id),
@@ -362,11 +360,11 @@ export function QuoteItemForm({
       materials: materialsDesc ? { description: materialsDesc } : null,
       materialCost: materialCost > 0 ? Number(materialCost.toFixed(2)) : null,
       subtotal: Number(subtotal.toFixed(2)),
-      managementPercentage: managementPercentage > 0 ? Number(managementPercentage.toFixed(2)) : null,
+      managementPercentage: null,
       administrationPercentage: administrationPerc > 0 ? Number(administrationPerc.toFixed(2)) : null,
       contingenciesPercentage: contingenciesPerc > 0 ? Number(contingenciesPerc.toFixed(2)) : null,
       profitPercentage: profitPerc > 0 ? Number(profitPerc.toFixed(2)) : null,
-      agValue: totalAIU > 0 ? Number(totalAIU.toFixed(2)) : null,
+      agValue: null,
       vat: taxType === "iva" || taxType === "aiu",
       assignedContractorId: isExternal ? null : (currentUser?.id ?? null),
       // Campos para contratistas externos

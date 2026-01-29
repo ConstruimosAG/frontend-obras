@@ -179,7 +179,7 @@ export function WorkModal({
             )}
           </div>
 
-          {isEditing && (
+          {/*isEditing && (
             <div className="flex items-center space-x-2">
               <Checkbox
                 id="finalized"
@@ -199,7 +199,7 @@ export function WorkModal({
                 Marcar como finalizada
               </Label>
             </div>
-          )}
+          )*/}
 
           <DialogFooter className="flex-col-reverse sm:flex-row gap-2">
             <Button

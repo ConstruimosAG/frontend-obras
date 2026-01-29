@@ -15,15 +15,22 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { itemSchema, itemEditSchema } from "@/lib/schemas";
 import type { Item } from "@/lib/types";
-import { Loader2 } from "lucide-react";
+import { Loader2, X } from "lucide-react";
 
 interface ItemModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   item?: Item | null;
-  workId?: number; // required when creating
+  workId?: number;
   onSubmit: (data: {
     description: string;
     personnelRequired: Record<string, unknown>;
@@ -35,6 +42,7 @@ interface ItemModalProps {
   }) => Promise<void> | void;
   isSubmitting?: boolean;
   coordinator?: boolean;
+  contractors?: Array<{ id: number; name: string }>;
 }
 
 export function ItemModal({
@@ -44,19 +52,18 @@ export function ItemModal({
   workId,
   onSubmit,
   isSubmitting = false,
-  coordinator = true
+  coordinator = true,
+  contractors = [],
 }: ItemModalProps) {
   const isEditing = Boolean(item);
   const [formData, setFormData] = useState({
     description: "",
-    // Personnel Required fields
     oficiales: "",
     ayudantes: "",
     mediaCuchara: "",
     siso: "",
     otroPersonalName: "",
     otroPersonalQuantity: "",
-    // Extras fields
     andamio: "",
     equiposDeAltura: "",
     volqueta: "",
@@ -64,7 +71,6 @@ export function ItemModal({
     herramientaEspecial: "",
     otroExtrasName: "",
     otroExtrasQuantity: "",
-    // Other fields
     estimatedExecutionTime: "",
     contractorId: "",
     active: true,
@@ -179,7 +185,6 @@ export function ItemModal({
         workId: isEditing ? undefined : workId,
       };
 
-      // Validate with zod
       if (isEditing) {
         itemEditSchema.parse({
           description: payload.description,
@@ -205,10 +210,13 @@ export function ItemModal({
         setErrors(newErrors);
         return;
       }
-      // si la onSubmit lanza error (fetch), dejamos que el hook lo maneje con toast
       console.error(error);
     }
   };
+
+  const selectedContractor = contractors.find(
+    (c) => c.id.toString() === formData.contractorId
+  );
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -261,24 +269,58 @@ export function ItemModal({
             )}
           </div>
 
-          {/* Contratista */}
+          {/* Contratista - Select con shadcn */}
           <div className="space-y-2">
-            <Label htmlFor="contractorId">Contratista (ID)</Label>
-            <Input
-              id="contractorId"
-              type="number"
-              value={formData.contractorId}
-              onChange={(e) =>
-                setFormData({ ...formData, contractorId: e.target.value })
-              }
-              placeholder="ID del contratista (opcional)"
-              disabled={isEditing || isSubmitting}
-              className={isEditing ? "bg-muted dark:text-black/80" : "dark:text-black/80"}
-            />
-            {isEditing && (
-              <p className="text-xs text-muted-foreground">
-                El contratista no puede ser modificado
-              </p>
+            <Label htmlFor="contractorId">Contratista</Label>
+            {isEditing ? (
+              <>
+                <Input
+                  id="contractorId"
+                  value={selectedContractor?.name || "Sin contratista asignado"}
+                  disabled
+                  className="bg-muted dark:text-black/80"
+                />
+                <p className="text-xs text-muted-foreground">
+                  El contratista no puede ser modificado
+                </p>
+              </>
+            ) : (
+              <div className="relative">
+                <Select
+                  value={formData.contractorId || undefined}
+                  onValueChange={(value) =>
+                    setFormData({ ...formData, contractorId: value })
+                  }
+                  disabled={isSubmitting}
+                >
+                  <SelectTrigger className="dark:text-black/80">
+                    <SelectValue placeholder="Seleccionar contratista (opcional)" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {contractors.map((contractor) => (
+                      <SelectItem
+                        key={contractor.id}
+                        value={contractor.id.toString()}
+                      >
+                        {contractor.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {formData.contractorId && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="absolute right-8 top-1/2 -translate-y-1/2 h-6 w-6 p-0"
+                    onClick={() => setFormData({ ...formData, contractorId: "" })}
+                    disabled={isSubmitting}
+                  >
+                    <X className="h-4 w-4" />
+                    <span className="sr-only">Limpiar selección</span>
+                  </Button>
+                )}
+              </div>
             )}
           </div>
 

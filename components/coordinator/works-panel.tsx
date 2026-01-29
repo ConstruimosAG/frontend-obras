@@ -11,7 +11,7 @@ import type { Work } from "@/lib/types";
 import { useWorks } from "@/hooks/work/useWorks";
 import { Loader2 } from "lucide-react";
 
-export function WorksPanel({ coordinator = true }: { coordinator?: boolean }) {
+export function WorksPanel({ coordinator = true, path = "admin" }: { coordinator?: boolean, path?: string }) {
   const router = useRouter();
   const { works, loading, submitting, createWork, updateWork } = useWorks();
   const [searchTerm, setSearchTerm] = useState("");
@@ -37,7 +37,7 @@ export function WorksPanel({ coordinator = true }: { coordinator?: boolean }) {
   };
 
   const handleWorkClick = (workId: string | number) => {
-    coordinator ? router.push(`/coordinator/works/${workId}`) : router.push(`/admin/works/${workId}`);
+    coordinator ? router.push(`/coordinator/works/${workId}`) : router.push(`/${path}/works/${workId}`);
   };
 
   const handleSubmit = async (data: {
