@@ -20,6 +20,7 @@ export interface Item {
   estimatedExecutionTime: number | null;
   workId: number;
   contractorId: number | null;
+  contractor?: User;
   quoteItems?: QuoteItem[];
 }
 
@@ -54,6 +55,8 @@ export interface QuoteWork {
 
 export interface User {
   id: number;
+  name: string;
+  role: string;
   identifier: string;
   password: string;
   createdAt: Date;

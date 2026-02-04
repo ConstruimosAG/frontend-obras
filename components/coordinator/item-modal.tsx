@@ -23,7 +23,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { itemSchema, itemEditSchema } from "@/lib/schemas";
-import type { Item } from "@/lib/types";
+import type { Item, User } from "@/lib/types";
 import { Loader2, X } from "lucide-react";
 
 interface ItemModalProps {
@@ -42,7 +42,7 @@ interface ItemModalProps {
   }) => Promise<void> | void;
   isSubmitting?: boolean;
   coordinator?: boolean;
-  contractors?: Array<{ id: number; name: string }>;
+  contractors?: User[];
 }
 
 export function ItemModal({
@@ -143,7 +143,7 @@ export function ItemModal({
         personnel.otroQuantity = Number(formData.otroPersonalQuantity);
       }
     }
-
+    console.log(personnel);
     return personnel;
   };
 
@@ -269,7 +269,7 @@ export function ItemModal({
             )}
           </div>
 
-          {/* Contratista - Select con shadcn */}
+          {/* Contratista - Select con shadcn - CORREGIDO */}
           <div className="space-y-2">
             <Label htmlFor="contractorId">Contratista</Label>
             {isEditing ? (
@@ -285,18 +285,25 @@ export function ItemModal({
                 </p>
               </>
             ) : (
-              <div className="relative">
+              <div className="flex items-center gap-2">
                 <Select
-                  value={formData.contractorId || undefined}
-                  onValueChange={(value) =>
-                    setFormData({ ...formData, contractorId: value })
-                  }
+                  value={formData.contractorId || "none"}
+                  onValueChange={(value) => {
+                    if (value === "none") {
+                      setFormData({ ...formData, contractorId: "" });
+                    } else {
+                      setFormData({ ...formData, contractorId: value });
+                    }
+                  }}
                   disabled={isSubmitting}
                 >
-                  <SelectTrigger className="dark:text-black/80">
+                  <SelectTrigger className="w-full dark:text-black/80">
                     <SelectValue placeholder="Seleccionar contratista (opcional)" />
                   </SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="none">
+                      <span className="text-muted-foreground">Sin contratista</span>
+                    </SelectItem>
                     {contractors.map((contractor) => (
                       <SelectItem
                         key={contractor.id}
@@ -311,8 +318,8 @@ export function ItemModal({
                   <Button
                     type="button"
                     variant="ghost"
-                    size="sm"
-                    className="absolute right-8 top-1/2 -translate-y-1/2 h-6 w-6 p-0"
+                    size="icon"
+                    className="h-10 w-10 shrink-0"
                     onClick={() => setFormData({ ...formData, contractorId: "" })}
                     disabled={isSubmitting}
                   >

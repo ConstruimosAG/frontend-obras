@@ -32,8 +32,6 @@ export const itemSchema = z.object({
     .string()
     .min(10, "La descripción debe tener al menos 10 caracteres")
     .max(500, "La descripción no puede exceder los 500 caracteres"),
-  //   personnelRequired: z.record(z.unknown()).default({}),
-  //   extras: z.record(z.unknown()).default({}),
   estimatedExecutionTime: z
     .number()
     .min(1, "El tiempo estimado debe ser de al menos 1 hora")

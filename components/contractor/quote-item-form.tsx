@@ -809,26 +809,6 @@ export function QuoteItemForm({
               disabled={submitting}
             />
           </div>
-
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-gray-500">
-              Costo de materiales
-            </label>
-            <Input
-              type="number"
-              min="0"
-              step="0.01"
-              value={materialCost || ""}
-              onChange={(e) =>
-                setMaterialCost(Number.parseFloat(e.target.value) || 0)
-              }
-              disabled={submitting}
-              aria-invalid={!!errors.materialCost}
-            />
-            {errors.materialCost && (
-              <p className="text-sm text-destructive">{errors.materialCost}</p>
-            )}
-          </div>
         </CardContent>
       </Card>
 

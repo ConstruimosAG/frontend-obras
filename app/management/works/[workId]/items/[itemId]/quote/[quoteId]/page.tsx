@@ -34,21 +34,15 @@ export default function ManagementQuoteForm({ params }: ManagementQuoteFormProps
   const [agPercentage, setAgPercentage] = useState<number>(0);
   const [materialsDesc, setMaterialsDesc] = useState<string>("");
   const [materialCost, setMaterialCost] = useState<number>(0);
+  const [materialCostDisplay, setMaterialCostDisplay] = useState<string>("");
 
   useEffect(() => {
     const loadData = async () => {
       try {
         setLoading(true);
 
-        // Verificar si ya está finalizado
+        // Cargar QuoteItem (sin verificar si está finalizado)
         const quoteData = await getQuoteItem(numericQuoteId);
-        
-        if (quoteData.quoteWorkId) {
-          setError("Este ítem ya ha sido finalizado");
-          setLoading(false);
-          return;
-        }
-
         setQuote(quoteData);
 
         // Cargar valores iniciales de materials y materialCost
@@ -56,7 +50,12 @@ export default function ManagementQuoteForm({ params }: ManagementQuoteFormProps
           setMaterialsDesc(quoteData.materials.description);
         }
         if (quoteData.materialCost) {
-          setMaterialCost(Number(quoteData.materialCost));
+          const cost = Number(quoteData.materialCost);
+          setMaterialCost(cost);
+          setMaterialCostDisplay(formatNumberWithThousands(cost));
+        }
+        if (quoteData.managementPercentage) {
+          setAgPercentage(Number(quoteData.managementPercentage));
         }
 
         // Cargar item
@@ -69,7 +68,7 @@ export default function ManagementQuoteForm({ params }: ManagementQuoteFormProps
 
         const itemData = await itemRes.json();
         setItem(itemData?.data ?? itemData);
-        
+
         setLoading(false);
       } catch (err: any) {
         console.error(err);
@@ -81,6 +80,38 @@ export default function ManagementQuoteForm({ params }: ManagementQuoteFormProps
     void loadData();
   }, [numericQuoteId, numericItemId, getQuoteItem]);
 
+  const formatNumberWithThousands = (value: number) => {
+    return value.toLocaleString("es-CO", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
+  };
+
+  const parseNumberFromDisplay = (value: string) => {
+    // Remover puntos y reemplazar coma por punto
+    const cleaned = value.replace(/\./g, "").replace(",", ".");
+    return Number.parseFloat(cleaned) || 0;
+  };
+
+  const handleMaterialCostChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setMaterialCostDisplay(value);
+
+    // Parsear para guardar el valor numérico
+    const numericValue = parseNumberFromDisplay(value);
+    if (numericValue < 0) {
+      setMaterialCost(0);
+      toast.warning("El costo de materiales no puede ser negativo");
+    } else {
+      setMaterialCost(numericValue);
+    }
+  };
+
+  const handleMaterialCostBlur = () => {
+    // Al salir del campo, formatear con miles
+    setMaterialCostDisplay(formatNumberWithThousands(materialCost));
+  };
+
   const calculateSubtotal = () => {
     if (!quote) return 0;
     // Subtotal es del contratista, no cambia
@@ -89,7 +120,7 @@ export default function ManagementQuoteForm({ params }: ManagementQuoteFormProps
 
   const calculateTotalContractor = () => {
     const subtotal = calculateSubtotal();
-    // Total Contractor = subtotal + materialCost (si hay)
+    // Total Contractor = subtotal + materialCost
     return subtotal + materialCost;
   };
 
@@ -102,21 +133,8 @@ export default function ManagementQuoteForm({ params }: ManagementQuoteFormProps
   const calculateTotalContractorWithAG = () => {
     const totalContractor = calculateTotalContractor();
     const agValue = calculateAGValue();
-    // Total Contractor (final) = totalContractor + agValue
+    // Total final = totalContractor + agValue
     return totalContractor + agValue;
-  };
-
-  const calculateIVA = () => {
-    const totalContractorFinal = calculateTotalContractorWithAG();
-    // IVA = totalContractor (final) * 0.19
-    return Math.round(totalContractorFinal * 0.19);
-  };
-
-  const calculateFinalTotal = () => {
-    const totalContractorFinal = calculateTotalContractorWithAG();
-    const iva = calculateIVA();
-    // Total Final = totalContractor (final) + IVA
-    return totalContractorFinal + iva;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -140,27 +158,28 @@ export default function ManagementQuoteForm({ params }: ManagementQuoteFormProps
 
     try {
       const baseUrl = process.env.NEXT_PUBLIC_BACKEND_URL;
-      
+
       // 1. Calcular valores
       const agValue = calculateAGValue();
       const totalContractorFinal = calculateTotalContractorWithAG();
 
       // 2. Actualizar el QuoteItem con los valores de gerencia
-      const updatedQuote = await updateQuoteItem(numericQuoteId, {
+      await updateQuoteItem(numericQuoteId, {
         managementPercentage: agPercentage,
         agValue: agValue,
+        totalContractor: totalContractorFinal,
         materialCost: materialCost,
         materials: materialsDesc ? { description: materialsDesc } : null,
       } as any);
 
       // 3. Verificar si existe QuoteWork para esta obra
       let quoteWork: any = null;
-      
+
       try {
         const quoteWorkRes = await fetch(`${baseUrl}/api/quote-works?workId=${numericWorkId}`, {
           credentials: "include",
         });
-        
+
         if (quoteWorkRes.ok) {
           const quoteWorkData = await quoteWorkRes.json();
           const works = quoteWorkData?.data?.quoteWorks ?? quoteWorkData?.data ?? quoteWorkData;
@@ -178,8 +197,8 @@ export default function ManagementQuoteForm({ params }: ManagementQuoteFormProps
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             workId: numericWorkId,
-            subtotal: 0, // Se actualizará después
-            total: 0, // Se actualizará después
+            subtotal: 0,
+            total: 0,
           }),
         });
 
@@ -191,10 +210,12 @@ export default function ManagementQuoteForm({ params }: ManagementQuoteFormProps
         quoteWork = createdData?.data ?? createdData;
       }
 
-      // 5. Asignar el QuoteItem al QuoteWork
-      await updateQuoteItem(numericQuoteId, {
-        quoteWorkId: quoteWork.id,
-      } as any);
+      // 5. Asignar el QuoteItem al QuoteWork (si no está asignado)
+      if (!quote.quoteWorkId) {
+        await updateQuoteItem(numericQuoteId, {
+          quoteWorkId: quoteWork.id,
+        } as any);
+      }
 
       // 6. Obtener todos los QuoteItems del QuoteWork
       const quoteItemsRes = await fetch(`${baseUrl}/api/quote-items?quoteWorkId=${quoteWork.id}`, {
@@ -224,7 +245,12 @@ export default function ManagementQuoteForm({ params }: ManagementQuoteFormProps
 
           if (item.active) {
             // Item activo, incluirlo en el cálculo
-            subtotalQuoteWork += Number(qi.totalContractor);
+            // subtotal + materialCost + agValue
+            const itemTotal =
+              Number(qi.subtotal || 0) +
+              Number(qi.materialCost || 0) +
+              Number(qi.agValue || 0);
+            subtotalQuoteWork += itemTotal;
             activeQuoteItemIds.push(qi.id);
           } else {
             // Item inactivo, removerlo del QuoteWork
@@ -235,9 +261,39 @@ export default function ManagementQuoteForm({ params }: ManagementQuoteFormProps
         }
       }
 
-      // 8. Calcular IVA y total del QuoteWork
-      const ivaQuoteWork = Math.round(subtotalQuoteWork * 0.19);
-      const totalQuoteWork = subtotalQuoteWork + ivaQuoteWork;
+      // 8. Calcular total del QuoteWork según IVA/AIU
+      const quoteWorkData = await fetch(`${baseUrl}/api/quote-works/${quoteWork.id}`, {
+        credentials: "include",
+      });
+
+      let totalQuoteWork = subtotalQuoteWork;
+
+      if (quoteWorkData.ok) {
+        const qw = await quoteWorkData.json();
+        const quoteWorkInfo = qw?.data ?? qw;
+
+        if (quoteWorkInfo.vat) {
+          // IVA simple
+          totalQuoteWork = Math.round(subtotalQuoteWork * 1.19);
+        } else if (
+          quoteWorkInfo.administrationPercentage ||
+          quoteWorkInfo.contingenciesPercentage ||
+          quoteWorkInfo.profitPercentage
+        ) {
+          // AIU
+          const admin = Number(quoteWorkInfo.administrationPercentage || 0) / 100;
+          const contingencies = Number(quoteWorkInfo.contingenciesPercentage || 0) / 100;
+          const profit = Number(quoteWorkInfo.profitPercentage || 0) / 100;
+
+          const aiuValue = subtotalQuoteWork * (admin + contingencies);
+          const profitValue = (subtotalQuoteWork + aiuValue) * profit;
+          const ivaOnProfit = profitValue * 0.19;
+
+          totalQuoteWork = Math.round(
+            subtotalQuoteWork + aiuValue + profitValue + ivaOnProfit
+          );
+        }
+      }
 
       // 9. Actualizar QuoteWork con los totales finales
       const updateRes = await fetch(`${baseUrl}/api/quote-works/${quoteWork.id}`, {
@@ -254,7 +310,7 @@ export default function ManagementQuoteForm({ params }: ManagementQuoteFormProps
         throw new Error("Error al actualizar QuoteWork");
       }
 
-      toast.success("Cotización finalizada correctamente");
+      toast.success("Cotización actualizada correctamente");
       router.push(`/management/works/${numericWorkId}`);
     } catch (err: any) {
       console.error(err);
@@ -298,47 +354,18 @@ export default function ManagementQuoteForm({ params }: ManagementQuoteFormProps
         <div className="container mx-auto px-3 sm:px-4 py-4 sm:py-8">
           <Card className="max-w-2xl mx-auto">
             <CardHeader className="bg-red-500 text-white">
-              <CardTitle>
-                {error === "Este ítem ya ha sido finalizado" 
-                  ? "Ítem Finalizado" 
-                  : "Error"}
-              </CardTitle>
+              <CardTitle>Error</CardTitle>
             </CardHeader>
             <CardContent className="p-6">
-              {error === "Este ítem ya ha sido finalizado" ? (
-                <div className="space-y-4">
-                  <p>Este ítem ya ha completado su proceso de cotización.</p>
-                  {quote && (
-                    <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg space-y-2">
-                      <p className="font-medium">Información de la cotización final:</p>
-                      <div className="grid grid-cols-2 gap-2 text-sm">
-                        <span className="text-muted-foreground">Contratista:</span>
-                        <span>{getContractorName(quote)}</span>
-                        <span className="text-muted-foreground">Subtotal:</span>
-                        <span>${formatCurrency(Number(quote.subtotal))}</span>
-                        <span className="text-muted-foreground">Total:</span>
-                        <span className="font-bold">${formatCurrency(Number(quote.totalContractor))}</span>
-                      </div>
-                    </div>
-                  )}
-                  <Button
-                    onClick={() => router.push(`/management/works/${numericWorkId}`)}
-                    className="w-full bg-orange-500 hover:bg-orange-600"
-                  >
-                    Volver a la lista de ítems
-                  </Button>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  <p className="text-destructive">{error || "No se pudo cargar la información"}</p>
-                  <Button
-                    onClick={() => router.push(`/management/works/${numericWorkId}`)}
-                    variant="outline"
-                  >
-                    Volver
-                  </Button>
-                </div>
-              )}
+              <div className="space-y-4">
+                <p className="text-destructive">{error || "No se pudo cargar la información"}</p>
+                <Button
+                  onClick={() => router.push(`/management/works/${numericWorkId}`)}
+                  variant="outline"
+                >
+                  Volver
+                </Button>
+              </div>
             </CardContent>
           </Card>
         </div>
@@ -361,7 +388,7 @@ export default function ManagementQuoteForm({ params }: ManagementQuoteFormProps
           </Button>
           <div className="min-w-0">
             <h1 className="text-xl sm:text-2xl font-bold text-foreground mb-2">
-              Ajustar Cotización
+              {quote.quoteWorkId ? "Editar Cotización" : "Ajustar Cotización"}
             </h1>
             <p className="text-sm sm:text-base text-muted-foreground">
               {item.description}
@@ -450,21 +477,6 @@ export default function ManagementQuoteForm({ params }: ManagementQuoteFormProps
                       Puedes modificar esto en "Ajustes de Gerencia"
                     </p>
                   </div>
-                  {quote.materialCost > 0 && (
-                    <div>
-                      <label className="text-sm font-medium text-gray-500">
-                        Costo de Materiales (Original)
-                      </label>
-                      <Input
-                        value={`$${formatCurrency(Number(quote.materialCost))}`}
-                        className="bg-gray-50"
-                        readOnly
-                      />
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Puedes modificar esto en "Ajustes de Gerencia"
-                      </p>
-                    </div>
-                  )}
                 </>
               )}
 
@@ -522,24 +534,15 @@ export default function ManagementQuoteForm({ params }: ManagementQuoteFormProps
                     Costo de Materiales <span className="text-red-500">*</span>
                   </label>
                   <Input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={materialCost || ""}
-                    onChange={(e) => {
-                      const value = Number.parseFloat(e.target.value) || 0;
-                      if (value < 0) {
-                        setMaterialCost(0);
-                        toast.warning("El costo de materiales no puede ser negativo");
-                      } else {
-                        setMaterialCost(value);
-                      }
-                    }}
-                    placeholder="0.00"
+                    type="text"
+                    value={materialCostDisplay}
+                    onChange={handleMaterialCostChange}
+                    onBlur={handleMaterialCostBlur}
+                    placeholder="0,00"
                     required
                   />
                   <p className="text-xs text-muted-foreground mt-1">
-                    Ajusta el costo de materiales
+                    Ajusta el costo de materiales (se mostrará con formato de miles)
                   </p>
                 </div>
 
@@ -609,24 +612,10 @@ export default function ManagementQuoteForm({ params }: ManagementQuoteFormProps
 
               <Separator />
 
-              <div className="flex justify-between font-semibold">
-                <span>Subtotal:</span>
-                <span>${formatCurrency(calculateTotalContractorWithAG())}</span>
-              </div>
-
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-500">IVA (19%):</span>
-                <span className="font-medium text-blue-600">
-                  +${formatCurrency(calculateIVA())}
-                </span>
-              </div>
-
-              <Separator />
-
               <div className="flex justify-between text-lg">
-                <span className="font-bold">Total Final:</span>
+                <span className="font-bold">Subtotal:</span>
                 <span className="font-bold text-green-600">
-                  ${formatCurrency(calculateFinalTotal())}
+                  ${formatCurrency(calculateTotalContractorWithAG())}
                 </span>
               </div>
             </CardContent>
@@ -654,7 +643,7 @@ export default function ManagementQuoteForm({ params }: ManagementQuoteFormProps
               ) : (
                 <>
                   <Save className="h-4 w-4 mr-2" />
-                  Finalizar Cotización
+                  {quote.quoteWorkId ? "Actualizar Cotización" : "Finalizar Cotización"}
                 </>
               )}
             </Button>

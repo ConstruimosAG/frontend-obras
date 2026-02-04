@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { toast } from "sonner";
 import type { User } from "@/lib/types";
 
 export function useUsers() {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -84,8 +85,47 @@ export function useUsers() {
     [baseUrl],
   );
 
+  const fetchUsers = useCallback(
+    async () => {
+      try {
+        if (!baseUrl) throw new Error("NEXT_PUBLIC_BACKEND_URL es obligatoria");
+
+        const res = await fetch(`${baseUrl}/api/users`, {
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+        });
+
+        if (!res.ok) throw new Error(`Error fetching users: ${res.status}`);
+
+        type UserResponse = {
+          success: boolean;
+          data?: {
+            users?: User[];
+          };
+        };
+
+        const json: UserResponse = await res.json();
+        const incoming = (json as any)?.data?.users ?? (json as any)?.users ?? json?.data ?? json;
+        setUsers(incoming);
+        return incoming;
+      } catch (err: any) {
+        console.error(err);
+        toast.error(err?.message ?? "No se pudo cargar los usuarios");
+        throw err;
+      }
+    },
+    [baseUrl],
+  );
+
+  useEffect(() => {
+    void fetchUsers();
+  }, [fetchUsers]);
+
   return {
     currentUser,
+    users,
+    setUsers,
+    fetchUsers,
     setCurrentUser,
     loading,
     error,
