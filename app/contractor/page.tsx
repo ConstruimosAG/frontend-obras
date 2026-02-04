@@ -8,7 +8,7 @@ import { useUsers } from "@/hooks/users/useUsers";
 export default function ContractorPage() {
   const router = useRouter();
   const { currentUser, getCurrentUser, loading: userLoading } = useUsers();
-  console.log(currentUser)
+
   useEffect(() => {
     void getCurrentUser();
   }, [getCurrentUser]);

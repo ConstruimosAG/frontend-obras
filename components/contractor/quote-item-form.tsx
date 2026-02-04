@@ -374,7 +374,6 @@ export function QuoteItemForm({
       }),
     };
 
-    console.log("Payload a enviar:", JSON.stringify(payload, null, 2));
 
     try {
       let result;

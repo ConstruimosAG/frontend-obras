@@ -34,7 +34,6 @@ export default function ContractorItemDetailPage({
       try {
         setLoading(true);
         const fetchedItem = await getItem(numericItemId);
-        console.log(fetchedItem);
         // Verify the item belongs to the current contractor
         if ((fetchedItem as any).contractorId !== currentUser?.id) {
           router.push("/contractor");

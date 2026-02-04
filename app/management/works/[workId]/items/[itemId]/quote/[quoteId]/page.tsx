@@ -186,7 +186,6 @@ export default function ManagementQuoteForm({ params }: ManagementQuoteFormProps
           quoteWork = Array.isArray(works) ? works[0] : works;
         }
       } catch (err) {
-        console.log("QuoteWork no existe aún, se creará uno nuevo");
       }
 
       // 4. Si no existe QuoteWork, crearlo

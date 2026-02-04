@@ -31,6 +31,33 @@ interface WorkModalProps {
   isSubmitting?: boolean;
 }
 
+// Convertir fecha del backend (UTC/ISO) a formato local YYYY-MM-DD para el input
+function formatDateForInput(dateString: string | Date | null): string {
+  if (!dateString) return "";
+
+  const date = new Date(dateString);
+
+  // Obtener componentes en zona horaria LOCAL
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+}
+
+// Convertir fecha del input (YYYY-MM-DD) a ISO con mediodía para evitar cambios de día
+function formatDateForSubmit(dateString: string): string {
+  if (!dateString) return "";
+
+  // El input tipo date devuelve "YYYY-MM-DD"
+  // Agregamos hora 12:00:00 en zona local para evitar problemas de zona horaria
+  const [year, month, day] = dateString.split("-");
+  const date = new Date(Number(year), Number(month) - 1, Number(day), 12, 0, 0);
+
+  // Convertir a ISO string
+  return date.toISOString();
+}
+
 export function WorkModal({
   open,
   onOpenChange,
@@ -53,7 +80,7 @@ export function WorkModal({
       setFormData({
         code: work.code,
         quotationDeadline: work.quotationDeadline
-          ? new Date(work.quotationDeadline).toISOString().split("T")[0]
+          ? formatDateForInput(work.quotationDeadline)
           : "",
         finalized: work.finalized,
       });
@@ -72,25 +99,28 @@ export function WorkModal({
     setErrors({});
 
     try {
+      // Convertir fecha del input a ISO antes de enviar
+      const deadlineISO = formatDateForSubmit(formData.quotationDeadline);
+
       if (isEditing) {
         workEditSchema.parse({
-          quotationDeadline: formData.quotationDeadline,
+          quotationDeadline: deadlineISO,
           finalized: formData.finalized,
         });
 
         await onSubmit({
-          quotationDeadline: formData.quotationDeadline,
+          quotationDeadline: deadlineISO,
           finalized: formData.finalized,
         });
       } else {
         workSchema.parse({
           code: formData.code,
-          quotationDeadline: formData.quotationDeadline,
+          quotationDeadline: deadlineISO,
         });
 
         await onSubmit({
           code: formData.code,
-          quotationDeadline: formData.quotationDeadline,
+          quotationDeadline: deadlineISO,
         });
       }
 
@@ -106,7 +136,6 @@ export function WorkModal({
         setErrors(newErrors);
         return;
       }
-      // si la onSubmit lanza error (fetch), dejamos que el hook lo maneje con toast
       console.error(error);
     }
   };
@@ -178,28 +207,6 @@ export function WorkModal({
               </p>
             )}
           </div>
-
-          {/*isEditing && (
-            <div className="flex items-center space-x-2">
-              <Checkbox
-                id="finalized"
-                checked={formData.finalized}
-                onCheckedChange={(checked) =>
-                  setFormData((prev) => ({
-                    ...prev,
-                    finalized: checked as boolean,
-                  }))
-                }
-                disabled={isSubmitting}
-              />
-              <Label
-                htmlFor="finalized"
-                className="text-sm font-normal cursor-pointer"
-              >
-                Marcar como finalizada
-              </Label>
-            </div>
-          )*/}
 
           <DialogFooter className="flex-col-reverse sm:flex-row gap-2">
             <Button

@@ -98,14 +98,12 @@ export default function WorkSummaryPage({ params }: WorkSummaryPageProps) {
     const pendingItems = items.filter((item: any) =>
         !item.quoteItems?.some((q: any) => q.quoteWorkId !== null)
     );
-    console.log(items)
     // Calcular subtotal (suma de todos los items finalizados)
     const calculateSubtotal = () => {
         let subtotal = 0;
         finishedItems.forEach((item: any) => {
             const finalizedQuote = item.quoteItems?.find((q: any) => q.quoteWorkId !== null);
             if (finalizedQuote) {
-                console.log(finalizedQuote)
                 const itemTotal =
                     Number(finalizedQuote.subtotal || 0) +
                     Number(finalizedQuote.materialCost || 0) +

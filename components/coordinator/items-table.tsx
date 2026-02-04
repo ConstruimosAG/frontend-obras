@@ -412,9 +412,8 @@ export function ItemsTable({
     });
   };
 
-  const getPersonnelDisplay = (personnel: Record<string, unknown>) => {
-    const values = Object.values(personnel).filter((v) => typeof v === "string");
-    return values.join(", ") || "Not assigned";
+  const getPersonnelDisplay = (contractor: { name?: string } | null) => {
+    return contractor && contractor.name ? contractor.name : "No se ha asignado un contratista";
   };
 
   const formatEstimatedTime = (hours: number | null) => {
@@ -607,7 +606,7 @@ export function ItemsTable({
                       </TableCell>
                       <TableCell className="max-w-37.5">
                         <p className="truncate">
-                          {getPersonnelDisplay(item.personnelRequired)}
+                          {getPersonnelDisplay(item.contractor ?? null)}
                         </p>
                       </TableCell>
                       <TableCell>
@@ -676,17 +675,18 @@ export function ItemsTable({
                                 </Button>
                               )}
 
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => handleEdit(item)}
-                                className="h-8 px-2"
-                              >
-                                <Pencil className="h-3.5 w-3.5" />
-                              </Button>
+
 
                               {!coordinator && (
                                 <>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => handleEdit(item)}
+                                    className="h-8 px-2"
+                                  >
+                                    <Pencil className="h-3.5 w-3.5" />
+                                  </Button>
                                   <Button
                                     variant="outline"
                                     size="sm"
@@ -766,7 +766,7 @@ export function ItemsTable({
                     <div className="flex items-center gap-2">
                       <User className="h-4 w-4 text-primary shrink-0" />
                       <span className="truncate">
-                        {getPersonnelDisplay(item.personnelRequired)}
+                        {getPersonnelDisplay(item.contractor ?? null)}
                       </span>
                     </div>
                   </div>
@@ -820,15 +820,7 @@ export function ItemsTable({
                             Link
                           </Button>
                         )}
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleEdit(item)}
-                          className="flex-1"
-                        >
-                          <Pencil className="h-4 w-4 mr-1" />
-                          Editar
-                        </Button>
+
                         <Button
                           variant="outline"
                           size="sm"
@@ -840,6 +832,15 @@ export function ItemsTable({
                         </Button>
                         {!coordinator && (
                           <>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleEdit(item)}
+                              className="flex-1"
+                            >
+                              <Pencil className="h-4 w-4 mr-1" />
+                              Editar
+                            </Button>
                             <Button
                               variant="outline"
                               size="sm"

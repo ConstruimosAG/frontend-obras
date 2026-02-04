@@ -143,7 +143,6 @@ export function ItemModal({
         personnel.otroQuantity = Number(formData.otroPersonalQuantity);
       }
     }
-    console.log(personnel);
     return personnel;
   };
 
