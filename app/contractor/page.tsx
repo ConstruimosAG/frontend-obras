@@ -50,7 +50,7 @@ export default function ContractorPage() {
           items={currentUser?.items ?? []}
           user={currentUser}
           loading={false}
-          contractorName={currentUser?.identifier}
+          contractorName={currentUser?.name}
           currentUserId={currentUser?.id}
         />
       </div>
