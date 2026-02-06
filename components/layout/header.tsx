@@ -3,11 +3,11 @@
 import { LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Image from "next/image";
+import { logout } from "@/lib/auth";
 
 export function Header() {
   const handleLogout = () => {
-    // Logout logic will be implemented when connecting backend
-    console.log("Logout clicked");
+    logout();
   };
 
   return (

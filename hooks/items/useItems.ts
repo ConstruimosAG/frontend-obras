@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import type { Item } from "@/lib/types";
+import { fetchClient } from "@/lib/fetch-client";
 
 export function useItems(workId?: number) {
   const [items, setItems] = useState<Item[]>([]);
@@ -17,12 +18,8 @@ export function useItems(workId?: number) {
       setLoading(true);
       try {
         if (!baseUrl) throw new Error("NEXT_PUBLIC_BACKEND_URL is not defined");
-        const res = await fetch(
+        const res = await fetchClient(
           `${baseUrl}/api/items?workId=${workId}&page=${page}&limit=${limit}`,
-          {
-            credentials: "include",
-            headers: { "Content-Type": "application/json" },
-          },
         );
         if (!res.ok) throw new Error(`Error fetching items: ${res.status}`);
 
@@ -57,10 +54,8 @@ export function useItems(workId?: number) {
       setSubmitting(true);
       try {
         if (!baseUrl) throw new Error("NEXT_PUBLIC_BACKEND_URL is not defined");
-        const res = await fetch(`${baseUrl}/api/items`, {
+        const res = await fetchClient(`${baseUrl}/api/items`, {
           method: "POST",
-          credentials: "include",
-          headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
         });
         if (!res.ok) {
@@ -87,10 +82,7 @@ export function useItems(workId?: number) {
     async (id: number) => {
       try {
         if (!baseUrl) throw new Error("NEXT_PUBLIC_BACKEND_URL is not defined");
-        const res = await fetch(`${baseUrl}/api/items/${id}`, {
-          credentials: "include",
-          headers: { "Content-Type": "application/json" },
-        });
+        const res = await fetchClient(`${baseUrl}/api/items/${id}`);
         if (!res.ok) throw new Error(`Error fetching item: ${res.status}`);
 
         type ItemResponse = {
@@ -117,10 +109,8 @@ export function useItems(workId?: number) {
       setSubmitting(true);
       try {
         if (!baseUrl) throw new Error("NEXT_PUBLIC_BACKEND_URL is not defined");
-        const res = await fetch(`${baseUrl}/api/items/${id}`, {
+        const res = await fetchClient(`${baseUrl}/api/items/${id}`, {
           method: "PUT",
-          credentials: "include",
-          headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
         });
         if (!res.ok) {
@@ -157,9 +147,8 @@ export function useItems(workId?: number) {
       setSubmitting(true);
       try {
         if (!baseUrl) throw new Error("NEXT_PUBLIC_BACKEND_URL is not defined");
-        const res = await fetch(`${baseUrl}/api/items/${id}`, {
+        const res = await fetchClient(`${baseUrl}/api/items/${id}`, {
           method: "DELETE",
-          credentials: "include",
         });
         if (!res.ok) {
           const text = await res.text().catch(() => null);

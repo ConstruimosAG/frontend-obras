@@ -3,6 +3,7 @@
 import { useState, useCallback, useEffect } from "react";
 import { toast } from "sonner";
 import type { User } from "@/lib/types";
+import { fetchClient } from "@/lib/fetch-client";
 
 export function useUsers() {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -21,15 +22,9 @@ export function useUsers() {
     try {
       if (!baseUrl) throw new Error("NEXT_PUBLIC_BACKEND_URL es obligatoria");
 
-      const res = await fetch(`${baseUrl}/api/users/me`, {
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-      });
+      const res = await fetchClient(`${baseUrl}/api/users/me`);
 
       if (!res.ok) {
-        if (res.status === 401) {
-          throw new Error("No autenticado");
-        }
         throw new Error(`Error fetching user: ${res.status}`);
       }
 
@@ -60,10 +55,7 @@ export function useUsers() {
       try {
         if (!baseUrl) throw new Error("NEXT_PUBLIC_BACKEND_URL es obligatoria");
 
-        const res = await fetch(`${baseUrl}/api/users/${id}`, {
-          credentials: "include",
-          headers: { "Content-Type": "application/json" },
-        });
+        const res = await fetchClient(`${baseUrl}/api/users/${id}`);
 
         if (!res.ok) throw new Error(`Error fetching user: ${res.status}`);
 
@@ -90,10 +82,7 @@ export function useUsers() {
       try {
         if (!baseUrl) throw new Error("NEXT_PUBLIC_BACKEND_URL es obligatoria");
 
-        const res = await fetch(`${baseUrl}/api/users`, {
-          credentials: "include",
-          headers: { "Content-Type": "application/json" },
-        });
+        const res = await fetchClient(`${baseUrl}/api/users`);
 
         if (!res.ok) throw new Error(`Error fetching users: ${res.status}`);
 

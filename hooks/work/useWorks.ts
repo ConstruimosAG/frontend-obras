@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { toast } from "sonner";
 import type { Work } from "@/lib/types";
+import { fetchClient } from "@/lib/fetch-client";
 
 type CreatePayload = { code: string; quotationDeadline: string };
 type UpdatePayload = { quotationDeadline: string; finalized?: boolean };
@@ -26,10 +27,7 @@ export function useWorks() {
     try {
       if (!baseUrl) throw new Error("NEXT_PUBLIC_BACKEND_URL es obligatoria");
 
-      const res = await fetch(`${baseUrl}/api/works`, {
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-      });
+      const res = await fetchClient(`${baseUrl}/api/works`);
 
       if (!res.ok) throw new Error(`Error fetching works: ${res.status}`);
 
@@ -66,10 +64,8 @@ export function useWorks() {
       try {
         if (!baseUrl) throw new Error("NEXT_PUBLIC_BACKEND_URL is not defined");
 
-        const res = await fetch(`${baseUrl}/api/works`, {
+        const res = await fetchClient(`${baseUrl}/api/works`, {
           method: "POST",
-          credentials: "include",
-          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             code: data.code,
             quotationDeadline: new Date(data.quotationDeadline), // YYYY-MM-DD from input
@@ -107,10 +103,8 @@ export function useWorks() {
       try {
         if (!baseUrl) throw new Error("NEXT_PUBLIC_BACKEND_URL is not defined");
 
-        const res = await fetch(`${baseUrl}/api/works/${id}`, {
+        const res = await fetchClient(`${baseUrl}/api/works/${id}`, {
           method: "PUT",
-          credentials: "include",
-          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             quotationDeadline: new Date(data.quotationDeadline),
             finalized: data.finalized,
