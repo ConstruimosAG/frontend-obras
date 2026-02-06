@@ -16,7 +16,6 @@ export default function WorkDetailPage({ params }: WorkDetailPageProps) {
   const { works, loading, error } = useWorks();
 
   const work = works.find((w) => w.id === numericWorkId);
-
   if (error) {
     return (
       <main className="min-h-screen bg-background">
@@ -25,7 +24,7 @@ export default function WorkDetailPage({ params }: WorkDetailPageProps) {
         </div>
       </main>
     );
-  } 
+  }
 
   if (loading || !work) {
     return (

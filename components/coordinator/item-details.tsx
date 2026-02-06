@@ -404,7 +404,7 @@ export function ItemDetails({
                 <div className="min-w-0">
                   <p className="text-sm text-muted-foreground">Contratista</p>
                   <p className="font-medium">
-                    {item.contractor.identifier || `ID: ${item.contractor.id}`}
+                    {item.contractor.name || `ID: ${item.contractor.id}`}
                   </p>
                 </div>
               </div>

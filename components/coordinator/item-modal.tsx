@@ -77,7 +77,7 @@ export function ItemModal({
     notes: "",
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
-
+  console.log(contractors);
   useEffect(() => {
     if (!open) return;
 

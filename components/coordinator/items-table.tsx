@@ -52,6 +52,7 @@ import { ConfirmModal } from "./confirm-modal";
 import { useItems } from "@/hooks/items/useItems";
 import { toast } from "sonner";
 import type { Item, Work } from "@/lib/types";
+import { useUsers } from "@/hooks/users/useUsers";
 
 interface ItemsTableProps {
   work: Work;
@@ -76,6 +77,8 @@ export function ItemsTable({
   const [selectedItem, setSelectedItem] = useState<any | null>(null);
   const [deactivatingQuote, setDeactivatingQuote] = useState(false);
   const [downloadingPDF, setDownloadingPDF] = useState(false);
+  const { users } = useUsers();
+  const contractors = users.filter((u) => u.role === "contractor");
 
   // Estados para validación PDF
   const [quoteWork, setQuoteWork] = useState<any>(null);
@@ -85,10 +88,12 @@ export function ItemsTable({
   // Formulario PDF
   const [pdfFormData, setPdfFormData] = useState({
     clientName: "UNIVERSIDAD DE LOS ANDES",
+    attn: "",
+    executeIn: "",
     department: "OBRAS",
     validityDays: "30",
     deliveryTime: "30 DÍAS CALENDARIO",
-    paymentTerms: "50% ANTICIPO, 50% CONTRA ENTREGA",
+    paymentTerms: quoteWork?.subtotal > 10000000 ? "50% ANTICIPO, 50% CONTRA ENTREGA" : "CONTRA ENTREGA",
   });
 
   const { items, submitting, createItem, updateItem, toggleActive, deleteItem } =
@@ -226,6 +231,8 @@ export function ItemsTable({
           body: JSON.stringify({
             clientName: pdfFormData.clientName,
             department: pdfFormData.department,
+            attn: pdfFormData.attn,
+            executeIn: pdfFormData.executeIn,
             validityDays: Number(pdfFormData.validityDays),
             deliveryTime: pdfFormData.deliveryTime,
             paymentTerms: pdfFormData.paymentTerms,
@@ -248,8 +255,10 @@ export function ItemsTable({
       toast.success("PDF descargado exitosamente");
       setPdfModalOpen(false);
       setPdfFormData({
-        clientName: "",
-        department: "",
+        clientName: "UNIVERSIDAD DE LOS ANDES",
+        department: "OBRAS",
+        attn: "",
+        executeIn: "",
         validityDays: "30",
         deliveryTime: "30 DÍAS CALENDARIO",
         paymentTerms: "50% ANTICIPO, 50% CONTRA ENTREGA",
@@ -932,6 +941,36 @@ export function ItemsTable({
               />
             </div>
 
+            <div className="space-y-2">
+              <Label htmlFor="attn">
+                Attn <span className="text-red-500">*</span>
+              </Label>
+              <Input
+                id="attn"
+                value={pdfFormData.attn}
+                onChange={(e) =>
+                  setPdfFormData({ ...pdfFormData, attn: e.target.value })
+                }
+                placeholder="Ej: Arquitecto"
+                required
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="executeIn">
+                Ejecutar en <span className="text-red-500">*</span>
+              </Label>
+              <Input
+                id="executeIn"
+                value={pdfFormData.executeIn}
+                onChange={(e) =>
+                  setPdfFormData({ ...pdfFormData, executeIn: e.target.value })
+                }
+                placeholder="Ej: ML-200"
+                required
+              />
+            </div>
+
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="validityDays">Vigencia (días)</Label>
@@ -1013,6 +1052,7 @@ export function ItemsTable({
         onSubmit={handleEditSubmit}
         isSubmitting={submitting}
         coordinator={false}
+        contractors={contractors}
       />
       <ConfirmModal
         open={deleteModalOpen}
