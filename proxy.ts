@@ -8,6 +8,7 @@ const LOGIN_PATH = "/";
 const validRoles = [
   "admin",
   "contractor",
+  "site_coordinator",
   "administrative_assistant",
   "management",
   "project_info",
@@ -18,6 +19,7 @@ type Role = (typeof validRoles)[number];
 const basePathMap: Record<Role, string> = {
   admin: "/admin",
   contractor: "/contractor",
+  site_coordinator: "/coordinator",
   administrative_assistant: "/admin",
   management: "/management",
   project_info: "/coordinator",
@@ -26,6 +28,7 @@ const basePathMap: Record<Role, string> = {
 const panelPathMap: Record<Role, string> = {
   admin: "/admin/",
   contractor: "/contractor",
+  site_coordinator: "/coordinator/",
   administrative_assistant: "/admin/",
   management: "/management/",
   project_info: "/coordinator/",
