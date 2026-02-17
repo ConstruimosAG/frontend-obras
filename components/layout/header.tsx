@@ -37,7 +37,7 @@ export function Header() {
           <Button
             variant="default"
             size="default"
-            className="bg-orange-600 text-white shadow-xs hover:bg-orange-700 gap-2 hover:cursor-pointer"
+            className="bg-purple-600 text-white shadow-xs hover:bg-purple-700 gap-2 hover:cursor-pointer"
             onClick={() => {
               window.location.href = "https://camppus.construimosagsas.com/";
             }}
