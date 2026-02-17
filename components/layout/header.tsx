@@ -43,7 +43,7 @@ export function Header() {
             }}
           >
             <School className="h-6 w-6" />
-            <span className="hidden md:block">Obras</span>
+            <span className="hidden md:block">Camppus</span>
           </Button>
           {/* Logout Button */}
           <Button
