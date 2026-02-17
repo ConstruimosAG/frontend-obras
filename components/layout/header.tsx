@@ -1,6 +1,6 @@
 "use client";
 
-import { LogOut } from "lucide-react";
+import { LogOut, School } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Image from "next/image";
 import { logout } from "@/lib/auth";
@@ -33,16 +33,29 @@ export function Header() {
           </div>
         </div>
 
-        {/* Logout Button */}
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={handleLogout}
-          className="gap-2 text-red-600 hover:bg-red-100 hover:text-red-700 hover:cursor-pointer"
-        >
-          <LogOut className="h-4 w-4" />
-          <span className="hidden sm:inline">Cerrar Sesión</span>
-        </Button>
+        <div className="flex items-center justify-center gap-5">
+          <Button
+            variant="default"
+            size="default"
+            className="bg-orange-600 text-white shadow-xs hover:bg-orange-700 gap-2 hover:cursor-pointer"
+            onClick={() => {
+              window.location.href = "https://camppus.construimosagsas.com/";
+            }}
+          >
+            <School className="h-6 w-6" />
+            <span className="hidden md:block">Obras</span>
+          </Button>
+          {/* Logout Button */}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleLogout}
+            className="gap-2 text-red-600 hover:bg-red-100 hover:text-red-700 hover:cursor-pointer"
+          >
+            <LogOut className="h-4 w-4" />
+            <span className="hidden sm:inline">Cerrar Sesión</span>
+          </Button>
+        </div>
       </div>
     </header>
   );

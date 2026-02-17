@@ -9,5 +9,5 @@ export function logout() {
   document.cookie = "token=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT; SameSite=Lax";
   
   // Redirect
-  window.location.href = "https://www.construimosagsas.com/";
+  window.location.href = "https://camppus.construimosagsas.com/";
 }
