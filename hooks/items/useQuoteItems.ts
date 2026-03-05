@@ -15,6 +15,7 @@ export type QuoteItemPayload = {
   agValue?: number | null;
   vat?: boolean;
   assignedContractorId?: number | null;
+  ConstruimosAG?: boolean;
 };
 
 export function useQuoteItems() {

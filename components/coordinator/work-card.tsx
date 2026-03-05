@@ -1,17 +1,18 @@
 "use client";
 
 import type React from "react";
-import { Badge, Calendar, FileText, Pencil } from "lucide-react";
+import { Badge, Calendar, FileText, Pencil, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { Work } from "@/lib/types";
 
 interface WorkCardProps {
   work: Work;
   onEdit: (work: Work) => void;
+  onDelete?: (workId: string | number) => void;
   onClick: (workId: string) => void;
 }
 
-export function WorkCard({ work, onEdit, onClick }: WorkCardProps) {
+export function WorkCard({ work, onEdit, onDelete, onClick }: WorkCardProps) {
   const formatDate = (date: Date | string) => {
     const dateObj = typeof date === "string" ? new Date(date) : date;
     return dateObj.toLocaleDateString("es-ES", {
@@ -24,6 +25,13 @@ export function WorkCard({ work, onEdit, onClick }: WorkCardProps) {
   const handleEditClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     onEdit(work);
+  };
+
+  const handleDeleteClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (onDelete) {
+      onDelete(work.id);
+    }
   };
 
   return (
@@ -40,25 +48,37 @@ export function WorkCard({ work, onEdit, onClick }: WorkCardProps) {
             </h3>
             <div className="mt-2">
               <span
-                className={`inline-flex items-center rounded-sm px-2 py-0.5 text-sm font-semibold ${
-                  work.finalized
+                className={`inline-flex items-center rounded-sm px-2 py-0.5 text-sm font-semibold ${work.finalized
                     ? "bg-green-700 text-white"
                     : "bg-purple-700 text-white"
-                } `}
+                  } `}
               >
                 Finalizada: {work.finalized ? "Sí" : "No"}
               </span>
             </div>
           </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleEditClick}
-            className="shrink-0 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity bg-transparent"
-          >
-            <Pencil className="h-4 w-4 sm:mr-1" />
-            <span className="hidden sm:inline">Editar</span>
-          </Button>
+          <div className="flex flex-col gap-2 shrink-0 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleEditClick}
+              className="bg-transparent"
+            >
+              <Pencil className="h-4 w-4 sm:mr-1" />
+              <span className="hidden sm:inline">Editar</span>
+            </Button>
+            {onDelete && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleDeleteClick}
+                className="bg-transparent text-destructive border-destructive hover:bg-destructive hover:text-white"
+              >
+                <Trash2 className="h-4 w-4 sm:mr-1" />
+                <span className="hidden sm:inline">Eliminar</span>
+              </Button>
+            )}
+          </div>
         </div>
 
         {/* Información del Work */}

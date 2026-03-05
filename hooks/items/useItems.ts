@@ -50,13 +50,23 @@ export function useItems(workId?: number) {
   );
 
   const createItem = useCallback(
-    async (payload: Partial<Item & { workId?: number }>) => {
+    async (payload: Record<string, any>) => {
       setSubmitting(true);
       try {
         if (!baseUrl) throw new Error("NEXT_PUBLIC_BACKEND_URL is not defined");
+
+        // Solo enviamos los campos que acepta el endpoint POST /api/items
+        const body: Record<string, unknown> = {
+          workId: payload.workId,
+          description: payload.description,
+        };
+        if (payload.contractorId !== undefined) body.contractorId = payload.contractorId ?? null;
+        if (payload.estimatedExecutionTime !== undefined) body.estimatedExecutionTime = payload.estimatedExecutionTime ?? null;
+        if (payload.active !== undefined) body.active = payload.active;
+
         const res = await fetchClient(`${baseUrl}/api/items`, {
           method: "POST",
-          body: JSON.stringify(payload),
+          body: JSON.stringify(body),
         });
         if (!res.ok) {
           const text = await res.text().catch(() => null);
@@ -105,13 +115,21 @@ export function useItems(workId?: number) {
   );
 
   const updateItem = useCallback(
-    async (id: number | string, payload: Partial<Item>) => {
+    async (id: number | string, payload: Record<string, any>) => {
       setSubmitting(true);
       try {
         if (!baseUrl) throw new Error("NEXT_PUBLIC_BACKEND_URL is not defined");
+
+        // Solo enviamos los campos que acepta el endpoint PUT /api/items/:id
+        const body: Record<string, unknown> = {};
+        if (payload.description !== undefined) body.description = payload.description;
+        if (payload.contractorId !== undefined) body.contractorId = payload.contractorId ?? null;
+        if (payload.estimatedExecutionTime !== undefined) body.estimatedExecutionTime = payload.estimatedExecutionTime ?? null;
+        if (payload.active !== undefined) body.active = payload.active;
+
         const res = await fetchClient(`${baseUrl}/api/items/${id}`, {
           method: "PUT",
-          body: JSON.stringify(payload),
+          body: JSON.stringify(body),
         });
         if (!res.ok) {
           const text = await res.text().catch(() => null);

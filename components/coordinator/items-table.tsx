@@ -20,6 +20,7 @@ import {
   Download,
   AlertCircle,
   CheckCircle2,
+  DollarSign,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -48,6 +49,7 @@ import {
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { ItemModal } from "./item-modal";
+import { WorkExtrasModal } from "./work-extras-modal";
 import { ConfirmModal } from "./confirm-modal";
 import { useItems } from "@/hooks/items/useItems";
 import { toast } from "sonner";
@@ -75,9 +77,12 @@ export function ItemsTable({
   const [deactivateQuoteModalOpen, setDeactivateQuoteModalOpen] = useState(false);
   const [pdfModalOpen, setPdfModalOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<any | null>(null);
+  const [extrasModalOpen, setExtrasModalOpen] = useState(false);
+  const [updatingExtras, setUpdatingExtras] = useState(false);
   const [deactivatingQuote, setDeactivatingQuote] = useState(false);
   const [downloadingPDF, setDownloadingPDF] = useState(false);
-  const { users } = useUsers();
+  const [editingQuoteItem, setEditingQuoteItem] = useState<any>(null);
+  const { users, currentUser } = useUsers();
   const contractors = users.filter((u) => u.role === "contractor");
 
   // Estados para validación PDF
@@ -390,15 +395,15 @@ export function ItemsTable({
   };
 
   const filteredItems = useMemo(() => {
-    if (!searchTerm.trim()) return items;
-    const term = searchTerm.toLowerCase();
-    return items.filter((item: Item) => {
-      const personnelStr = JSON.stringify(item.personnelRequired).toLowerCase();
-      return (
-        item.description.toLowerCase().includes(term) ||
-        personnelStr.includes(term)
-      );
-    });
+    let result = items;
+    if (searchTerm.trim()) {
+      const term = searchTerm.toLowerCase();
+      result = items.filter((item: Item) => {
+        return item.description.toLowerCase().includes(term);
+      });
+    }
+    // Reverse order
+    return [...result].reverse();
   }, [items, searchTerm]);
 
   const formatDate = (date: string | Date) => {
@@ -421,19 +426,29 @@ export function ItemsTable({
     });
   };
 
-  const getPersonnelDisplay = (contractor: { name?: string } | null) => {
-    return contractor && contractor.name ? contractor.name : "No se ha asignado un contratista";
+  const getPersonnelDisplay = (item: Item) => {
+    if (item.quoteItems?.some(q => q.ConstruimosAG)) {
+      return "Construimos AG";
+    }
+    return item.contractor?.name || "No se ha asignado un contratista";
   };
 
   const formatEstimatedTime = (hours: number | null) => {
-    if (!hours) return "Not set";
-    if (hours < 24) return `${hours} hours`;
+    if (!hours) return "No establecido";
+    if (hours < 24) return `${hours} horas`;
     const days = Math.floor(hours / 8);
-    return `${days} day${days > 1 ? "s" : ""}`;
+    return `${days} día${days > 1 ? "s" : ""}`;
   };
 
   const handleEdit = (item: Item) => {
     setSelectedItem(item);
+    setEditingQuoteItem(null);
+    setEditModalOpen(true);
+  };
+
+  const handleEditQuote = (item: Item, quoteComponent: any) => {
+    setSelectedItem(item);
+    setEditingQuoteItem({ ...quoteComponent });
     setEditModalOpen(true);
   };
 
@@ -454,14 +469,107 @@ export function ItemsTable({
 
   const handleCreateItem = () => {
     setSelectedItem(null);
+    setEditingQuoteItem(null);
     setEditModalOpen(true);
   };
 
   const handleEditSubmit = async (data: any) => {
-    if (selectedItem) {
+    if (editingQuoteItem) {
+      try {
+        const baseUrl = process.env.NEXT_PUBLIC_BACKEND_URL;
+        const { actividad, unidad, cantidad, precioUnitario, precioTotal, materialesObservaciones } = data.quoteData;
+
+        const quotePayload = {
+          subquotations: {
+            item_1: {
+              id: 1,
+              description: actividad,
+              measure: Number(cantidad),
+              unit: unidad,
+              unitValue: Number(precioUnitario),
+              totalValue: Number(precioTotal),
+            }
+          },
+          totalContractor: Number(Number(precioTotal).toFixed(2)),
+          materials: materialesObservaciones ? { description: materialesObservaciones } : null,
+          subtotal: Number(Number(precioTotal).toFixed(2)),
+          ConstruimosAG: true, // preserve or enforce
+        };
+
+        const res = await fetch(`${baseUrl}/api/quote-items/${editingQuoteItem.id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify(quotePayload),
+        });
+
+        if (!res.ok) {
+          toast.error("Error al actualizar cotización Construimos AG");
+        } else {
+          toast.success("Cotización Construimos AG actualizada");
+          window.location.reload();
+        }
+      } catch (error) {
+        console.error(error);
+        toast.error("Ocurrió un error al actualizar la cotización");
+      }
+    } else if (selectedItem) {
+      // El hook updateItem solo envía campos válidos al API
       await updateItem(selectedItem.id, data);
     } else {
-      await createItem({ ...data, workId: work.id });
+      // Extraemos solo lo que necesitamos para el QuoteItem (no va al API de items)
+      const { construimosAG, quoteData, ...itemPayload } = data;
+
+      // El hook createItem solo envía campos válidos al API
+      const createdItem = await createItem({ ...itemPayload, workId: work.id });
+
+      if (construimosAG && quoteData && createdItem) {
+        try {
+          const baseUrl = process.env.NEXT_PUBLIC_BACKEND_URL;
+          const { actividad, unidad, cantidad, precioUnitario, precioTotal, materialesObservaciones } = quoteData;
+
+          const quotePayload = {
+            itemId: Number(createdItem.id),
+            subquotations: {
+              item_1: {
+                id: 1,
+                description: actividad,
+                measure: Number(cantidad),
+                unit: unidad,
+                unitValue: Number(precioUnitario),
+                totalValue: Number(precioTotal),
+              }
+            },
+            totalContractor: Number(Number(precioTotal).toFixed(2)),
+            materials: materialesObservaciones ? { description: materialesObservaciones } : null,
+            materialCost: null,
+            subtotal: Number(Number(precioTotal).toFixed(2)),
+            managementPercentage: null,
+            administrationPercentage: null,
+            contingenciesPercentage: null,
+            profitPercentage: null,
+            agValue: null,
+            vat: false,
+            assignedContractorId: null,
+            ConstruimosAG: true,
+          };
+
+          const res = await fetch(`${baseUrl}/api/quote-items`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+            body: JSON.stringify(quotePayload),
+          });
+
+          if (!res.ok) {
+            toast.error("Error al crear cotización Construimos AG");
+          } else {
+            toast.success("Cotización Construimos AG creada");
+          }
+        } catch (error) {
+          console.error(error);
+        }
+      }
     }
   };
 
@@ -486,6 +594,34 @@ export function ItemsTable({
       } catch (error) {
         // Error handled by hook
       }
+    }
+  };
+
+  const handleUpdateExtras = async (data: { personnelRequired: Record<string, unknown>; extras: Record<string, unknown> }) => {
+    try {
+      setUpdatingExtras(true);
+      const baseUrl = process.env.NEXT_PUBLIC_BACKEND_URL;
+      const res = await fetch(`${baseUrl}/api/works/${work.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          personnelRequired: data.personnelRequired,
+          extras: data.extras,
+        }),
+      });
+
+      if (!res.ok) {
+        throw new Error("Error al guardar adicionales");
+      }
+
+      toast.success("Adicionales guardados correctamente");
+      window.location.reload();
+    } catch (error) {
+      console.error(error);
+      toast.error("Error al actualizar adicionales");
+    } finally {
+      setUpdatingExtras(false);
     }
   };
 
@@ -529,7 +665,7 @@ export function ItemsTable({
                 <Button
                   onClick={() => pdfReady && setPdfModalOpen(true)}
                   disabled={!pdfReady}
-                  className={`text-black ${pdfReady
+                  className={`${pdfReady
                     ? "bg-green-600 hover:bg-green-700"
                     : "bg-gray-400 cursor-not-allowed"
                     }`}
@@ -561,20 +697,36 @@ export function ItemsTable({
           {management && (
             <Button
               onClick={() => router.push(`/${path}/works/${work.id}/summary`)}
-              className="flex-1 sm:flex-none bg-blue-600 hover:bg-blue-700 text-black"
+              className="flex-1 sm:flex-none bg-blue-600 hover:bg-blue-700"
             >
               <FileText className="h-4 w-4 mr-1" />
               Resumen
             </Button>
           )}
           {!management && (
-            <Button
-              onClick={handleCreateItem}
-              className="flex-1 sm:flex-none bg-orange-500 hover:bg-orange-600 text-white"
-            >
-              <Plus className="h-4 w-4 mr-1" />
-              Crear Ítem
-            </Button>
+            <div className="flex gap-2 w-full sm:w-auto">
+              <Button
+                onClick={() => setExtrasModalOpen(true)}
+                className="flex-1 sm:flex-none bg-purple-600 hover:bg-purple-700 text-white"
+              >
+                {work.finalized ? (
+                  <Eye className="h-4 w-4 mr-1" />
+                ) : (
+                  <Plus className="h-4 w-4 mr-1" />
+                )}
+                {work.finalized ? "Ver adicionales" : "Añadir adicionales"}
+              </Button>
+
+              {!work.finalized && (
+                <Button
+                  onClick={handleCreateItem}
+                  className="flex-1 sm:flex-none bg-orange-500 hover:bg-orange-600 text-white"
+                >
+                  <Plus className="h-4 w-4 mr-1" />
+                  Crear Ítem
+                </Button>
+              )}
+            </div>
           )}
         </div>
       </div>
@@ -586,7 +738,6 @@ export function ItemsTable({
             <Table>
               <TableHeader>
                 <TableRow className="bg-muted/50">
-                  <TableHead className="whitespace-nowrap">ID</TableHead>
                   <TableHead className="min-w-50">Descripción</TableHead>
                   <TableHead className="whitespace-nowrap">Creado</TableHead>
                   <TableHead className="whitespace-nowrap">Tiempo Est.</TableHead>
@@ -598,12 +749,10 @@ export function ItemsTable({
               <TableBody>
                 {filteredItems.map((item: Item) => {
                   const isFinished = hasFinishedQuotation(item);
-
+                  console.log(item)
+                  console.log(item.quoteItems?.some(q => q.ConstruimosAG))
                   return (
                     <TableRow key={item.id}>
-                      <TableCell className="font-medium whitespace-nowrap">
-                        #{item.id}
-                      </TableCell>
                       <TableCell className="max-w-62.5">
                         <p className="truncate">{item.description}</p>
                       </TableCell>
@@ -615,7 +764,7 @@ export function ItemsTable({
                       </TableCell>
                       <TableCell className="max-w-37.5">
                         <p className="truncate">
-                          {getPersonnelDisplay(item.contractor ?? null)}
+                          {getPersonnelDisplay(item)}
                         </p>
                       </TableCell>
                       <TableCell>
@@ -696,6 +845,17 @@ export function ItemsTable({
                                   >
                                     <Pencil className="h-3.5 w-3.5" />
                                   </Button>
+                                  {!coordinator && !management && item.quoteItems?.some(q => q.ConstruimosAG) && (
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => handleEditQuote(item, item.quoteItems!.find(q => q.ConstruimosAG))}
+                                      title="Modificar Cotización"
+                                      className="h-8 px-2 text-orange-600 hover:text-orange-700 hover:bg-orange-50"
+                                    >
+                                      <DollarSign className="h-3.5 w-3.5" />
+                                    </Button>
+                                  )}
                                   <Button
                                     variant="outline"
                                     size="sm"
@@ -734,13 +894,11 @@ export function ItemsTable({
           <div className="md:hidden space-y-3">
             {filteredItems.map((item: Item) => {
               const isFinished = hasFinishedQuotation(item);
-
               return (
                 <div key={item.id} className="border rounded-lg bg-card p-4 space-y-3">
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2 mb-2 flex-wrap">
-                        <Badge className="bg-purple-700">#{item.id}</Badge>
                         <Badge
                           variant={item.active ? "default" : "secondary"}
                           className={
@@ -775,7 +933,7 @@ export function ItemsTable({
                     <div className="flex items-center gap-2">
                       <User className="h-4 w-4 text-primary shrink-0" />
                       <span className="truncate">
-                        {getPersonnelDisplay(item.contractor ?? null)}
+                        {getPersonnelDisplay(item)}
                       </span>
                     </div>
                   </div>
@@ -850,6 +1008,17 @@ export function ItemsTable({
                               <Pencil className="h-4 w-4 mr-1" />
                               Editar
                             </Button>
+                            {!coordinator && !management && item.quoteItems?.some(q => q.ConstruimosAG) && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleEditQuote(item, item.quoteItems!.find(q => q.ConstruimosAG))}
+                                className="flex-1 text-orange-600 hover:text-orange-700 hover:bg-orange-50 border-orange-200"
+                              >
+                                <DollarSign className="h-4 w-4 mr-1" />
+                                Mod. Cot.
+                              </Button>
+                            )}
                             <Button
                               variant="outline"
                               size="sm"
@@ -1023,7 +1192,7 @@ export function ItemsTable({
               </Button>
               <Button
                 type="submit"
-                className="bg-green-600 hover:bg-green-700 text-black"
+                className="bg-green-600 hover:bg-green-700"
                 disabled={downloadingPDF}
               >
                 {downloadingPDF ? (
@@ -1050,30 +1219,37 @@ export function ItemsTable({
         item={selectedItem}
         workId={work.id}
         onSubmit={handleEditSubmit}
-        isSubmitting={submitting}
-        coordinator={false}
+        coordinator={coordinator}
         contractors={contractors}
+        editingQuoteItem={editingQuoteItem}
       />
       <ConfirmModal
         open={deleteModalOpen}
         onOpenChange={setDeleteModalOpen}
         title="Activar/Desactivar Ítem"
-        description={`¿Estás seguro de que deseas activar/desactivar el ítem #${selectedItem?.id}?`}
+        description={`¿Estás seguro de que deseas activar/desactivar el ítem actual?`}
         onConfirm={handleDeleteConfirm}
       />
       <ConfirmModal
         open={permanentDeleteModalOpen}
         onOpenChange={setPermanentDeleteModalOpen}
         title="Eliminar Ítem Permanentemente"
-        description={`¿Estás seguro de que deseas eliminar permanentemente el ítem #${selectedItem?.id}?`}
+        description={`¿Estás seguro de que deseas eliminar permanentemente el ítem?`}
         onConfirm={handlePermanentDeleteConfirm}
       />
       <ConfirmModal
         open={deactivateQuoteModalOpen}
         onOpenChange={setDeactivateQuoteModalOpen}
         title="Desactivar Cotización"
-        description={`¿Estás seguro de que deseas desactivar la cotización del ítem #${selectedItem?.id}?`}
+        description={`¿Estás seguro de que deseas desactivar la cotización del ítem?`}
         onConfirm={handleDeactivateQuoteConfirm}
+      />
+      <WorkExtrasModal
+        open={extrasModalOpen}
+        onOpenChange={setExtrasModalOpen}
+        work={work}
+        onSubmit={handleUpdateExtras}
+        isSubmitting={updatingExtras}
       />
     </div>
   );

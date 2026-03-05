@@ -137,6 +137,35 @@ export function useWorks() {
     [baseUrl, toast],
   );
 
+  const deleteWork = useCallback(
+    async (id: string | number) => {
+      setSubmitting(true);
+      try {
+        if (!baseUrl) throw new Error("NEXT_PUBLIC_BACKEND_URL is not defined");
+
+        const res = await fetchClient(`${baseUrl}/api/works/${id}`, {
+          method: "DELETE",
+        });
+
+        if (!res.ok) {
+          const text = await res.text().catch(() => null);
+          throw new Error(`Error deleting work: ${res.status} ${text ?? ""}`);
+        }
+
+        setWorks((prev) => prev.filter((w) => w.id !== Number(id)));
+
+        toast.success("Trabajo eliminado exitosamente");
+      } catch (err: any) {
+        console.error(err);
+        toast.error(err?.message ?? "No se pudo eliminar la obra");
+        throw err;
+      } finally {
+        setSubmitting(false);
+      }
+    },
+    [baseUrl]
+  );
+
   useEffect(() => {
     void fetchWorks();
   }, [fetchWorks]);
@@ -150,5 +179,6 @@ export function useWorks() {
     fetchWorks,
     createWork,
     updateWork,
+    deleteWork,
   };
 }

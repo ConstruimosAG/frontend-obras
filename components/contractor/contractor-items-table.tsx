@@ -43,15 +43,14 @@ export function ContractorItemsTable({
   const [searchTerm, setSearchTerm] = useState("");
 
   const filteredItems = useMemo(() => {
-    if (!searchTerm.trim()) return items;
-    const term = searchTerm.toLowerCase();
-    return items.filter((item: Item) => {
-      const personnelStr = JSON.stringify(item.personnelRequired).toLowerCase();
-      return (
-        item.description.toLowerCase().includes(term) ||
-        personnelStr.includes(term)
-      );
-    });
+    let result = items;
+    if (searchTerm.trim()) {
+      const term = searchTerm.toLowerCase();
+      result = items.filter((item: Item) => {
+        return item.description.toLowerCase().includes(term);
+      });
+    }
+    return [...result].reverse();
   }, [items, searchTerm]);
 
   const formatDate = (date: string | Date) => {
@@ -74,14 +73,13 @@ export function ContractorItemsTable({
     });
   };
 
-  const getPersonnelDisplay = (personnel: Record<string, unknown>) => {
-    const entries: string[] = [];
-    Object.entries(personnel).forEach(([key, value]) => {
-      if (typeof value === "number" && value > 0) {
-        entries.push(`${key}: ${value}`);
+  const getPersonnelDisplay = (contractor: any) => {
+    if (contractor?.name) {
+      if (typeof contractor.name === 'string') {
+        return contractor.name;
       }
-    });
-    return entries.join(", ") || "No asignado";
+    }
+    return "No asignado";
   };
 
   const formatEstimatedTime = (hours: number | null) => {
@@ -150,7 +148,6 @@ export function ContractorItemsTable({
             <Table>
               <TableHeader>
                 <TableRow className="bg-muted/50">
-                  <TableHead className="whitespace-nowrap">ID</TableHead>
                   <TableHead className="min-w-50">Descripción</TableHead>
                   <TableHead className="whitespace-nowrap">Obra</TableHead>
                   <TableHead className="whitespace-nowrap">Creado</TableHead>
@@ -169,9 +166,6 @@ export function ContractorItemsTable({
                   const hasQuotedItem = hasQuoted(item);
                   return (
                     <TableRow key={item.id}>
-                      <TableCell className="font-medium whitespace-nowrap">
-                        #{item.id}
-                      </TableCell>
                       <TableCell className="max-w-62.5">
                         <p className="truncate">{item.description}</p>
                       </TableCell>
@@ -186,7 +180,7 @@ export function ContractorItemsTable({
                       </TableCell>
                       <TableCell className="max-w-37.5">
                         <p className="truncate">
-                          {getPersonnelDisplay(item.personnelRequired)}
+                          {getPersonnelDisplay(item.contractor ?? null)}
                         </p>
                       </TableCell>
                       <TableCell>
@@ -246,7 +240,6 @@ export function ContractorItemsTable({
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2 mb-2">
-                        <Badge className="bg-purple-700">#{item.id}</Badge>
                         <Badge
                           variant={item.active ? "default" : "secondary"}
                           className={
@@ -289,7 +282,7 @@ export function ContractorItemsTable({
                     <div className="flex items-center gap-2">
                       <User className="h-4 w-4 text-primary shrink-0" />
                       <span className="truncate">
-                        {getPersonnelDisplay(item.personnelRequired)}
+                        {getPersonnelDisplay(item.contractor ?? null)}
                       </span>
                     </div>
                   </div>

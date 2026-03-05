@@ -1,14 +1,26 @@
 "use client";
 
+import { useEffect } from "react";
 import { LogOut, School } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Image from "next/image";
 import { logout } from "@/lib/auth";
+import { useUsers } from "@/hooks/users/useUsers";
 
 export function Header() {
+  const { getCurrentUser } = useUsers();
+
+  // Al montar el header (presente en todas las páginas), registramos al usuario
+  // en la BD local de este servicio (igual que hacen los contratistas con /me).
+  // Esto garantiza que createdById/updatedById puedan conectarse a un User real.
+  useEffect(() => {
+    void getCurrentUser();
+  }, [getCurrentUser]);
+
   const handleLogout = () => {
     logout();
   };
+
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60">

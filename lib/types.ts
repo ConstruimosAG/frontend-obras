@@ -5,6 +5,8 @@ export interface Work {
   quotationDeadline: Date | null;
   createdAt: Date;
   updatedAt: Date;
+  personnelRequired?: Record<string, unknown> | null;
+  extras?: Record<string, unknown> | null;
   items?: Item[];
   quote?: QuoteWork;
 }
@@ -15,12 +17,12 @@ export interface Item {
   createdAt: Date;
   updatedAt: Date;
   description: string;
-  personnelRequired: Record<string, unknown>;
-  extras: Record<string, unknown>;
   estimatedExecutionTime: number | null;
   workId: number;
   contractorId: number | null;
   contractor?: User;
+  createdById?: number;
+  updatedById?: number;
   quoteItems?: QuoteItem[];
 }
 
@@ -41,6 +43,7 @@ export interface QuoteItem {
   itemId: number;
   quoteWorkId: number | null;
   assignedContractorId: number | null;
+  ConstruimosAG?: boolean;
 }
 
 export interface QuoteWork {
@@ -79,15 +82,11 @@ export interface WorkEditFormData {
 
 export interface ItemFormData {
   description: string;
-  personnelRequired: Record<string, unknown>;
-  extras: Record<string, unknown>;
   estimatedExecutionTime?: number;
   workId: number;
 }
 
 export interface ItemEditFormData {
   description?: string;
-  personnelRequired?: Record<string, unknown>;
-  extras?: Record<string, unknown>;
   estimatedExecutionTime?: number;
 }

@@ -2,7 +2,7 @@
 
 import { use, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Loader2, Pencil, TrendingUp, AlertCircle } from "lucide-react";
+import { ArrowLeft, Loader2, Pencil, TrendingUp, AlertCircle, Users, Wrench, ClipboardList, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -340,6 +340,130 @@ export default function WorkSummaryPage({ params }: WorkSummaryPageProps) {
                         </CardContent>
                     </Card>
                 </div>
+
+                {/* Personal y Adicionales de Obra */}
+                {(work?.personnelRequired || work?.extras) && (
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+                        {/* Personal Requerido */}
+                        <Card className="border-l-4 border-l-blue-500 shadow-sm overflow-hidden">
+                            <CardHeader className="flex flex-row items-center space-x-3 pb-2 bg-blue-50/30">
+                                <div className="p-2 bg-blue-100 rounded-lg">
+                                    <Users className="h-5 w-5 text-blue-600" />
+                                </div>
+                                <CardTitle className="text-lg font-bold">Personal Requerido</CardTitle>
+                            </CardHeader>
+                            <CardContent className="pt-6">
+                                <div className="grid grid-cols-2 sm:grid-cols-2 gap-6">
+                                    {(work.personnelRequired?.oficiales > 0) && (
+                                        <div className="flex flex-col p-3 bg-blue-50/20 rounded-xl border border-blue-100">
+                                            <span className="text-xs text-blue-600 uppercase tracking-widest font-bold mb-1">Oficiales</span>
+                                            <span className="text-2xl font-black text-blue-900">{work.personnelRequired.oficiales}</span>
+                                        </div>
+                                    )}
+                                    {(work.personnelRequired?.ayudantes > 0) && (
+                                        <div className="flex flex-col p-3 bg-blue-50/20 rounded-xl border border-blue-100">
+                                            <span className="text-xs text-blue-600 uppercase tracking-widest font-bold mb-1">Ayudantes</span>
+                                            <span className="text-2xl font-black text-blue-900">{work.personnelRequired.ayudantes}</span>
+                                        </div>
+                                    )}
+                                    {(work.personnelRequired?.mediaCuchara > 0) && (
+                                        <div className="flex flex-col p-3 bg-blue-50/20 rounded-xl border border-blue-100">
+                                            <span className="text-xs text-blue-600 uppercase tracking-widest font-bold mb-1">M. Cuchara</span>
+                                            <span className="text-2xl font-black text-blue-900">{work.personnelRequired.mediaCuchara}</span>
+                                        </div>
+                                    )}
+                                    {(work.personnelRequired?.siso > 0) && (
+                                        <div className="flex flex-col p-3 bg-blue-50/20 rounded-xl border border-blue-100">
+                                            <span className="text-xs text-blue-600 uppercase tracking-widest font-bold mb-1">SISO</span>
+                                            <span className="text-2xl font-black text-blue-900">{work.personnelRequired.siso}</span>
+                                        </div>
+                                    )}
+                                    {work.personnelRequired?.otroName && (
+                                        <div className="flex flex-col col-span-2 p-3 bg-blue-600/5 rounded-xl border border-blue-600/10">
+                                            <span className="text-xs text-blue-600 uppercase tracking-widest font-bold mb-1">{work.personnelRequired.otroName}</span>
+                                            <span className="text-xl font-black text-blue-900">{work.personnelRequired.otroQuantity || 1}</span>
+                                        </div>
+                                    )}
+                                    {(!work.personnelRequired || Object.keys(work.personnelRequired).filter(k => work.personnelRequired[k]).length === 0) && (
+                                        <div className="col-span-2 flex flex-col items-center justify-center py-6 text-muted-foreground bg-muted/5 rounded-lg border border-dashed">
+                                            <Users className="h-8 w-8 mb-2 opacity-20" />
+                                            <p className="text-sm italic">No se ha especificado personal.</p>
+                                        </div>
+                                    )}
+                                </div>
+                            </CardContent>
+                        </Card>
+
+                        {/* Adicionales y Notas */}
+                        <Card className="border-l-4 border-l-orange-500 shadow-sm overflow-hidden">
+                            <CardHeader className="flex flex-row items-center space-x-3 pb-2 bg-orange-50/30">
+                                <div className="p-2 bg-orange-100 rounded-lg">
+                                    <Wrench className="h-5 w-5 text-orange-600" />
+                                </div>
+                                <CardTitle className="text-lg font-bold">Adicionales y Logística</CardTitle>
+                            </CardHeader>
+                            <CardContent className="pt-6 space-y-6">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                    {work.extras?.andamio > 0 && (
+                                        <div className="flex justify-between items-center bg-orange-50/20 p-3 rounded-lg border border-orange-100">
+                                            <span className="text-sm font-semibold text-orange-900">Andamios</span>
+                                            <span className="bg-orange-600 text-white px-2.5 py-1 rounded-md text-xs font-black">{work.extras.andamio}</span>
+                                        </div>
+                                    )}
+                                    {work.extras?.equiposDeAltura > 0 && (
+                                        <div className="flex justify-between items-center bg-orange-50/20 p-3 rounded-lg border border-orange-100">
+                                            <span className="text-sm font-semibold text-orange-900">Eq. Altura</span>
+                                            <span className="bg-orange-600 text-white px-2.5 py-1 rounded-md text-xs font-black">{work.extras.equiposDeAltura}</span>
+                                        </div>
+                                    )}
+                                    {work.extras?.volqueta > 0 && (
+                                        <div className="flex justify-between items-center bg-orange-50/20 p-3 rounded-lg border border-orange-100">
+                                            <span className="text-sm font-semibold text-orange-900">Volquetas</span>
+                                            <span className="bg-orange-600 text-white px-2.5 py-1 rounded-md text-xs font-black">{work.extras.volqueta}</span>
+                                        </div>
+                                    )}
+                                    {work.extras?.acarreoYTransporte > 0 && (
+                                        <div className="flex justify-between items-center bg-orange-50/20 p-3 rounded-lg border border-orange-100">
+                                            <span className="text-sm font-semibold text-orange-900">Acarreo</span>
+                                            <span className="bg-orange-600 text-white px-2.5 py-1 rounded-md text-xs font-black">{work.extras.acarreoYTransporte}</span>
+                                        </div>
+                                    )}
+                                    {work.extras?.herramientaEspecial > 0 && (
+                                        <div className="flex justify-between items-center bg-orange-50/20 p-3 rounded-lg border border-orange-100">
+                                            <span className="text-sm font-semibold text-orange-900">Herr. Especial</span>
+                                            <span className="bg-orange-600 text-white px-2.5 py-1 rounded-md text-xs font-black">{work.extras.herramientaEspecial}</span>
+                                        </div>
+                                    )}
+                                    {work.extras?.otroName && (
+                                        <div className="flex justify-between items-center bg-orange-600/5 p-3 rounded-lg border border-dashed border-orange-300 col-span-1 sm:col-span-2">
+                                            <span className="text-sm font-bold text-orange-900">{work.extras.otroName}</span>
+                                            <span className="bg-orange-600 text-white px-2.5 py-1 rounded-md text-xs font-black">{work.extras.otroQuantity || 1}</span>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {work.extras?.notes && (
+                                    <div className="pt-4 border-t border-orange-100">
+                                        <div className="flex items-center gap-2 mb-3">
+                                            <ClipboardList className="h-4 w-4 text-orange-600" />
+                                            <span className="text-xs font-black uppercase tracking-widest text-orange-800">Notas de información de proyectos</span>
+                                        </div>
+                                        <div className="bg-white dark:bg-black/20 p-4 rounded-xl border border-orange-100 shadow-inner">
+                                            <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap leading-relaxed">{work.extras.notes}</p>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {(!work.extras || Object.keys(work.extras).filter(k => work.extras[k]).length === 0) && (
+                                    <div className="flex flex-col items-center justify-center py-6 text-muted-foreground bg-muted/5 rounded-lg border border-dashed">
+                                        <Wrench className="h-8 w-8 mb-2 opacity-20" />
+                                        <p className="text-sm italic">No se han especificado adicionales.</p>
+                                    </div>
+                                )}
+                            </CardContent>
+                        </Card>
+                    </div>
+                )}
 
                 {/* Tabla de items finalizados */}
                 <Card className="mb-6">

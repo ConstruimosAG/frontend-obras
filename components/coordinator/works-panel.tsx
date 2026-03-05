@@ -1,22 +1,33 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { WorkCard } from "./work-card";
 import { WorkModal } from "./work-modal";
+import { ConfirmModal } from "./confirm-modal";
 import type { Work } from "@/lib/types";
 import { useWorks } from "@/hooks/work/useWorks";
+import { useUsers } from "@/hooks/users/useUsers";
 import { Loader2 } from "lucide-react";
 
 export function WorksPanel({ coordinator = true, path = "admin" }: { coordinator?: boolean, path?: string }) {
   const router = useRouter();
-  const { works, loading, submitting, createWork, updateWork } = useWorks();
+  const { works, loading, submitting, createWork, updateWork, deleteWork } = useWorks();
+  const { currentUser, getCurrentUser } = useUsers();
   const [searchTerm, setSearchTerm] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [editingWork, setEditingWork] = useState<Work | null>(null);
+  const [deletingWorkId, setDeletingWorkId] = useState<string | number | null>(null);
+
+  useEffect(() => {
+    void getCurrentUser();
+  }, [getCurrentUser]);
+
+  const isAdmin = currentUser?.role === "administrative_assistant";
 
   const filteredWorks = useMemo(() => {
     if (!searchTerm.trim()) return works;
@@ -34,6 +45,19 @@ export function WorksPanel({ coordinator = true, path = "admin" }: { coordinator
   const handleEditWork = (work: Work) => {
     setEditingWork(work);
     setModalOpen(true);
+  };
+
+  const handleDeleteClick = (workId: string | number) => {
+    setDeletingWorkId(workId);
+    setDeleteModalOpen(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (deletingWorkId) {
+      await deleteWork(deletingWorkId);
+      setDeleteModalOpen(false);
+      setDeletingWorkId(null);
+    }
   };
 
   const handleWorkClick = (workId: string | number) => {
@@ -109,6 +133,7 @@ export function WorksPanel({ coordinator = true, path = "admin" }: { coordinator
               key={work.id}
               work={work}
               onEdit={handleEditWork}
+              onDelete={isAdmin ? () => handleDeleteClick(work.id) : undefined}
               onClick={() => handleWorkClick(work.id)}
             />
           ))}
@@ -131,6 +156,15 @@ export function WorksPanel({ coordinator = true, path = "admin" }: { coordinator
         work={editingWork}
         onSubmit={handleSubmit}
         isSubmitting={submitting}
+        isAdmin={isAdmin}
+      />
+
+      <ConfirmModal
+        open={deleteModalOpen}
+        onOpenChange={setDeleteModalOpen}
+        title="Eliminar Obra"
+        description="¿Estás seguro de que deseas eliminar esta obra? Esta acción no se puede deshacer."
+        onConfirm={handleDeleteConfirm}
       />
     </div>
   );

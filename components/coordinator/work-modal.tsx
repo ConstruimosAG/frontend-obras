@@ -29,6 +29,7 @@ interface WorkModalProps {
     finalized?: boolean;
   }) => Promise<void> | void;
   isSubmitting?: boolean;
+  isAdmin?: boolean;
 }
 
 // Convertir fecha del backend (UTC/ISO) a formato local YYYY-MM-DD para el input
@@ -64,6 +65,7 @@ export function WorkModal({
   work,
   onSubmit,
   isSubmitting = false,
+  isAdmin = false,
 }: WorkModalProps) {
   const isEditing = !!work;
   const [formData, setFormData] = useState({
@@ -207,6 +209,28 @@ export function WorkModal({
               </p>
             )}
           </div>
+
+          {isEditing && isAdmin && (
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="finalized"
+                checked={formData.finalized}
+                onCheckedChange={(checked) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    finalized: checked as boolean,
+                  }))
+                }
+                disabled={isSubmitting}
+              />
+              <Label
+                htmlFor="finalized"
+                className="text-sm font-medium leading-none cursor-pointer"
+              >
+                Marcar como finalizada
+              </Label>
+            </div>
+          )}
 
           <DialogFooter className="flex-col-reverse sm:flex-row gap-2">
             <Button
