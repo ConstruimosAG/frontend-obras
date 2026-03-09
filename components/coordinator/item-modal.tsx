@@ -274,7 +274,7 @@ export function ItemModal({
             )}
           </div>
 
-          {(!isEditing || isEditingQuote) && !coordinator && (
+          {(!isEditing || isEditingQuote) && (
             <div className="flex items-center space-x-2">
               <Checkbox
                 id="construimosAG"
