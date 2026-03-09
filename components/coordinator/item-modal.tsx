@@ -173,7 +173,7 @@ export function ItemModal({
         construimosAG: formData.construimosAG && !isEditingQuote,
       };
 
-      if ((formData.construimosAG || isEditingQuote) && !coordinator) {
+      if ((formData.construimosAG || isEditingQuote)) {
         payload.quoteData = {
           actividad: formData.actividad,
           unidad: formData.unidad,
@@ -357,7 +357,7 @@ export function ItemModal({
             </div>
           )}
 
-          {(formData.construimosAG || isEditingQuote) && !coordinator && (
+          {(formData.construimosAG || isEditingQuote) && (
             <div className="space-y-4 p-4 border rounded-md bg-muted/20">
               <div className="font-semibold text-sm">Información de Cotización Inicial</div>
 
