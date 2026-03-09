@@ -476,31 +476,56 @@ export default function WorkSummaryPage({ params }: WorkSummaryPageProps) {
                                 <Table>
                                     <TableHeader>
                                         <TableRow>
-                                            <TableHead>ID</TableHead>
+                                            <TableHead className="w-12">#</TableHead>
                                             <TableHead>Descripción</TableHead>
-                                            <TableHead className="text-right">Valor Total</TableHead>
+                                            <TableHead>Unidad</TableHead>
+                                            <TableHead className="text-right">Cantidad</TableHead>
+                                            <TableHead className="text-right">V. Unitario (AG)</TableHead>
+                                            <TableHead className="text-right">Materiales (AG)</TableHead>
+                                            <TableHead className="text-right">V. Total (AG)</TableHead>
                                             <TableHead className="text-right">Acciones</TableHead>
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
-                                        {finishedItems.map((item: any) => {
+                                        {finishedItems.map((item: any, index: number) => {
                                             const finalizedQuote = item.quoteItems?.find(
                                                 (q: any) => q.quoteWorkId !== null
                                             );
-                                            const itemTotal = finalizedQuote
-                                                ? Number(finalizedQuote.subtotal || 0) +
-                                                Number(finalizedQuote.materialCost || 0) +
-                                                Number(finalizedQuote.agValue || 0)
-                                                : 0;
+
+                                            // Calcular factor de ajuste AG (ej: 50% -> 1.5)
+                                            console.log(finalizedQuote)
+                                            const agPercentage = Number(finalizedQuote?.managementPercentage || 0);
+                                            const factor = 1 + (agPercentage / 100);
+
+                                            const subquotas = finalizedQuote?.subquotations || {};
+                                            const mainSubquota = subquotas.item_1 || Object.values(subquotas)[0] || {};
+
+                                            // Actividad ajustada
+                                            const unitValueAdjusted = Number(mainSubquota.unitValue || 0) * factor;
+                                            const activityTotalAdjusted = Number(mainSubquota.totalValue || 0) * factor;
+
+                                            // Materiales ajustados
+                                            const materialCostAdjusted = Number(finalizedQuote?.materialCost || 0) * factor;
+
+                                            // Total final (Actividad + Materiales)
+                                            const finalTotal = activityTotalAdjusted + materialCostAdjusted;
 
                                             return (
                                                 <TableRow key={item.id}>
-                                                    <TableCell className="font-medium">#{item.id}</TableCell>
-                                                    <TableCell className="max-w-md truncate">
+                                                    <TableCell className="font-medium">{index + 1}</TableCell>
+                                                    <TableCell className="max-w-[200px] truncate">
                                                         {item.description}
                                                     </TableCell>
+                                                    <TableCell>{mainSubquota.unit || "UND"}</TableCell>
+                                                    <TableCell className="text-right">{mainSubquota.measure || 0}</TableCell>
+                                                    <TableCell className="text-right">
+                                                        ${formatCurrency(unitValueAdjusted)}
+                                                    </TableCell>
+                                                    <TableCell className="text-right">
+                                                        ${formatCurrency(materialCostAdjusted)}
+                                                    </TableCell>
                                                     <TableCell className="text-right font-semibold">
-                                                        ${formatCurrency(itemTotal)}
+                                                        ${formatCurrency(finalTotal)}
                                                     </TableCell>
                                                     <TableCell className="text-right">
                                                         <Button

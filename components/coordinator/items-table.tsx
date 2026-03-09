@@ -101,8 +101,11 @@ export function ItemsTable({
     paymentTerms: quoteWork?.subtotal > 10000000 ? "50% ANTICIPO, 50% CONTRA ENTREGA" : "CONTRA ENTREGA",
   });
 
-  const { items, submitting, createItem, updateItem, toggleActive, deleteItem } =
+  const { items, submitting: hookSubmitting, createItem, updateItem, toggleActive, deleteItem } =
     useItems(work.id);
+
+  const [localSubmitting, setLocalSubmitting] = useState(false);
+  const submitting = hookSubmitting || localSubmitting;
 
   const isAdmin = !coordinator && !management;
 
@@ -474,62 +477,14 @@ export function ItemsTable({
   };
 
   const handleEditSubmit = async (data: any) => {
-    if (editingQuoteItem) {
-      try {
-        const baseUrl = process.env.NEXT_PUBLIC_BACKEND_URL;
-        const { actividad, unidad, cantidad, precioUnitario, precioTotal, materialesObservaciones } = data.quoteData;
-
-        const quotePayload = {
-          subquotations: {
-            item_1: {
-              id: 1,
-              description: actividad,
-              measure: Number(cantidad),
-              unit: unidad,
-              unitValue: Number(precioUnitario),
-              totalValue: Number(precioTotal),
-            }
-          },
-          totalContractor: Number(Number(precioTotal).toFixed(2)),
-          materials: materialesObservaciones ? { description: materialesObservaciones } : null,
-          subtotal: Number(Number(precioTotal).toFixed(2)),
-          ConstruimosAG: true, // preserve or enforce
-        };
-
-        const res = await fetch(`${baseUrl}/api/quote-items/${editingQuoteItem.id}`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-          body: JSON.stringify(quotePayload),
-        });
-
-        if (!res.ok) {
-          toast.error("Error al actualizar cotización Construimos AG");
-        } else {
-          toast.success("Cotización Construimos AG actualizada");
-          window.location.reload();
-        }
-      } catch (error) {
-        console.error(error);
-        toast.error("Ocurrió un error al actualizar la cotización");
-      }
-    } else if (selectedItem) {
-      // El hook updateItem solo envía campos válidos al API
-      await updateItem(selectedItem.id, data);
-    } else {
-      // Extraemos solo lo que necesitamos para el QuoteItem (no va al API de items)
-      const { construimosAG, quoteData, ...itemPayload } = data;
-
-      // El hook createItem solo envía campos válidos al API
-      const createdItem = await createItem({ ...itemPayload, workId: work.id });
-
-      if (construimosAG && quoteData && createdItem) {
+    setLocalSubmitting(true);
+    try {
+      if (editingQuoteItem) {
         try {
           const baseUrl = process.env.NEXT_PUBLIC_BACKEND_URL;
-          const { actividad, unidad, cantidad, precioUnitario, precioTotal, materialesObservaciones } = quoteData;
+          const { actividad, unidad, cantidad, precioUnitario, precioTotal, materialesObservaciones } = data.quoteData;
 
           const quotePayload = {
-            itemId: Number(createdItem.id),
             subquotations: {
               item_1: {
                 id: 1,
@@ -542,34 +497,88 @@ export function ItemsTable({
             },
             totalContractor: Number(Number(precioTotal).toFixed(2)),
             materials: materialesObservaciones ? { description: materialesObservaciones } : null,
-            materialCost: null,
             subtotal: Number(Number(precioTotal).toFixed(2)),
-            managementPercentage: null,
-            administrationPercentage: null,
-            contingenciesPercentage: null,
-            profitPercentage: null,
-            agValue: null,
-            vat: false,
-            assignedContractorId: null,
-            ConstruimosAG: true,
+            ConstruimosAG: true, // preserve or enforce
           };
 
-          const res = await fetch(`${baseUrl}/api/quote-items`, {
-            method: "POST",
+          const res = await fetch(`${baseUrl}/api/quote-items/${editingQuoteItem.id}`, {
+            method: "PUT",
             headers: { "Content-Type": "application/json" },
             credentials: "include",
             body: JSON.stringify(quotePayload),
           });
 
           if (!res.ok) {
-            toast.error("Error al crear cotización Construimos AG");
+            toast.error("Error al actualizar cotización Construimos AG");
           } else {
-            toast.success("Cotización Construimos AG creada");
+            toast.success("Cotización Construimos AG actualizada");
+            window.location.reload();
           }
         } catch (error) {
           console.error(error);
+          toast.error("Ocurrió un error al actualizar la cotización");
+        }
+      } else if (selectedItem) {
+        // El hook updateItem solo envía campos válidos al API
+        await updateItem(selectedItem.id, data);
+      } else {
+        // Extraemos solo lo que necesitamos para el QuoteItem (no va al API de items)
+        const { construimosAG, quoteData, ...itemPayload } = data;
+
+        // El hook createItem solo envía campos válidos al API
+        const createdItem = await createItem({ ...itemPayload, workId: work.id });
+
+        if (construimosAG && quoteData && createdItem) {
+          try {
+            const baseUrl = process.env.NEXT_PUBLIC_BACKEND_URL;
+            const { actividad, unidad, cantidad, precioUnitario, precioTotal, materialesObservaciones } = quoteData;
+
+            const quotePayload = {
+              itemId: Number(createdItem.id),
+              subquotations: {
+                item_1: {
+                  id: 1,
+                  description: actividad,
+                  measure: Number(cantidad),
+                  unit: unidad,
+                  unitValue: Number(precioUnitario),
+                  totalValue: Number(precioTotal),
+                }
+              },
+              totalContractor: Number(Number(precioTotal).toFixed(2)),
+              materials: materialesObservaciones ? { description: materialesObservaciones } : null,
+              materialCost: null,
+              subtotal: Number(Number(precioTotal).toFixed(2)),
+              managementPercentage: null,
+              administrationPercentage: null,
+              contingenciesPercentage: null,
+              profitPercentage: null,
+              agValue: null,
+              vat: false,
+              assignedContractorId: null,
+              ConstruimosAG: true,
+            };
+
+            const res = await fetch(`${baseUrl}/api/quote-items`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              credentials: "include",
+              body: JSON.stringify(quotePayload),
+            });
+
+            if (!res.ok) {
+              toast.error("Error al crear cotización Construimos AG");
+            } else {
+              toast.success("Cotización Construimos AG creada");
+              window.location.reload();
+            }
+          } catch (error) {
+            console.error(error);
+          }
         }
       }
+    } finally {
+      setLocalSubmitting(false);
     }
   };
 
