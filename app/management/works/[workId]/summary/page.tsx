@@ -493,7 +493,6 @@ export default function WorkSummaryPage({ params }: WorkSummaryPageProps) {
                                             );
 
                                             // Calcular factor de ajuste AG (ej: 50% -> 1.5)
-                                            console.log(finalizedQuote)
                                             const agPercentage = Number(finalizedQuote?.managementPercentage || 0);
                                             const factor = 1 + (agPercentage / 100);
 

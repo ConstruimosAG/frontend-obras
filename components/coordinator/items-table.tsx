@@ -758,8 +758,6 @@ export function ItemsTable({
               <TableBody>
                 {filteredItems.map((item: Item) => {
                   const isFinished = hasFinishedQuotation(item);
-                  console.log(item)
-                  console.log(item.quoteItems?.some(q => q.ConstruimosAG))
                   return (
                     <TableRow key={item.id}>
                       <TableCell className="max-w-62.5">

@@ -66,12 +66,10 @@ export function ItemModal({
     materialesObservaciones: "",
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
-  console.log(contractors);
   useEffect(() => {
     if (!open) return;
 
     if (editingQuoteItem) {
-      console.log("ItemModal: Mapping based on QuoteItem schema", editingQuoteItem);
 
       // Support string-encoded JSON if the backend returns it that way
       let subqData: any = editingQuoteItem.subquotations;
