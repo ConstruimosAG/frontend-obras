@@ -36,6 +36,7 @@ const unitOptions = [
   { value: "M", label: "Metro" },
   { value: "M2", label: "Metro cuadrado" },
   { value: "M3", label: "Metro cúbico" },
+  { value: "ML", label: "Metro lineal" },
   { value: "KG", label: "Kilogramo" },
   { value: "LT", label: "Litro" },
   { value: "GLB", label: "Global" },
@@ -679,9 +680,8 @@ export function QuoteItemForm({
                 />
                 <label
                   htmlFor="iva"
-                  className={`text-sm font-medium cursor-pointer ${
-                    taxType === "aiu" ? "text-muted-foreground" : ""
-                  }`}
+                  className={`text-sm font-medium cursor-pointer ${taxType === "aiu" ? "text-muted-foreground" : ""
+                    }`}
                 >
                   Incluir IVA ({ivaPercent}%)
                 </label>
@@ -696,9 +696,8 @@ export function QuoteItemForm({
                 />
                 <label
                   htmlFor="aiu"
-                  className={`text-sm font-medium cursor-pointer ${
-                    taxType === "iva" ? "text-muted-foreground" : ""
-                  }`}
+                  className={`text-sm font-medium cursor-pointer ${taxType === "iva" ? "text-muted-foreground" : ""
+                    }`}
                 >
                   Incluir AIU
                 </label>

@@ -402,6 +402,7 @@ export function ItemModal({
                       <SelectItem value="M">Metro</SelectItem>
                       <SelectItem value="M2">Metro Cuadrado</SelectItem>
                       <SelectItem value="M3">Metro Cúbico</SelectItem>
+                      <SelectItem value="ML">Metro Lineal</SelectItem>
                       <SelectItem value="KG">Kilogramo</SelectItem>
                       <SelectItem value="LT">Litro</SelectItem>
                       <SelectItem value="GLB">Global</SelectItem>
