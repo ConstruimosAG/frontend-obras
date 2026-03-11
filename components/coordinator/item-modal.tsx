@@ -398,16 +398,17 @@ export function ItemModal({
                       <SelectValue className="truncate" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="UND">Unidad</SelectItem>
-                      <SelectItem value="M">Metro</SelectItem>
-                      <SelectItem value="M2">Metro Cuadrado</SelectItem>
-                      <SelectItem value="M3">Metro Cúbico</SelectItem>
-                      <SelectItem value="ML">Metro Lineal</SelectItem>
-                      <SelectItem value="KG">Kilogramo</SelectItem>
-                      <SelectItem value="LT">Litro</SelectItem>
-                      <SelectItem value="GLB">Global</SelectItem>
-                      <SelectItem value="HR">Hora</SelectItem>
-                      <SelectItem value="DIA">Día</SelectItem>
+                      <SelectItem value="UND">UND</SelectItem>
+                      <SelectItem value="M">M</SelectItem>
+                      <SelectItem value="M2">M2</SelectItem>
+                      <SelectItem value="M3">M3</SelectItem>
+                      <SelectItem value="ML">ML</SelectItem>
+                      <SelectItem value="KM">KM</SelectItem>
+                      <SelectItem value="KG">KG</SelectItem>
+                      <SelectItem value="LT">LT</SelectItem>
+                      <SelectItem value="GLB">GLB</SelectItem>
+                      <SelectItem value="HR">HR</SelectItem>
+                      <SelectItem value="DIA">DIA</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>

@@ -32,16 +32,17 @@ const quoteItemSchema = z.object({
 
 // Opciones de unidad (del código original)
 const unitOptions = [
-  { value: "UND", label: "Unidad" },
-  { value: "M", label: "Metro" },
-  { value: "M2", label: "Metro cuadrado" },
-  { value: "M3", label: "Metro cúbico" },
-  { value: "ML", label: "Metro lineal" },
-  { value: "KG", label: "Kilogramo" },
-  { value: "LT", label: "Litro" },
-  { value: "GLB", label: "Global" },
-  { value: "HR", label: "Hora" },
-  { value: "DIA", label: "Día" },
+  { value: "UND", label: "UND" },
+  { value: "M", label: "M" },
+  { value: "M2", label: "M2" },
+  { value: "M3", label: "M3" },
+  { value: "ML", label: "ML" },
+  { value: "KM", label: "KM" },
+  { value: "KG", label: "KG" },
+  { value: "LT", label: "LT" },
+  { value: "GLB", label: "GLB" },
+  { value: "HR", label: "HR" },
+  { value: "DIA", label: "DIA" },
 ];
 
 interface SubquotationItem {
