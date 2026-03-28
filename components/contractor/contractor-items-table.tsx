@@ -202,7 +202,7 @@ export function ContractorItemsTable({
                             variant="default"
                             size="sm"
                             onClick={() => handleQuote(item.id)}
-                            className="h-8 px-2 bg-orange-500 hover:bg-orange-600"
+                            className="h-8 px-2 bg-purple-500 hover:bg-purple-600"
                           >
                             <FileText className="h-3.5 w-3.5 mr-1" />
                             <span className="hidden lg:inline">{!hasQuotedItem ? "Cotizar" : "Ver cotización"}</span>
@@ -294,7 +294,7 @@ export function ContractorItemsTable({
                       variant="default"
                       size="sm"
                       onClick={() => handleQuote(item.id)}
-                      className="flex-1 bg-orange-500 hover:bg-orange-600"
+                      className="flex-1 bg-purple-500 hover:bg-purple-600"
                     >
                       <FileText className="h-4 w-4 mr-1" />
                       {!hasQuotedItem ? "Cotizar" : "Ver cotización"}

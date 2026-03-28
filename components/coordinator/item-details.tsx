@@ -126,7 +126,7 @@ export function ItemDetails({
           </h2>
           <div className="grid gap-4 grid-cols-1 sm:grid-cols-2">
             <div className="flex items-start gap-3">
-              <Clock className="h-5 w-5 mt-0.5 shrink-0 text-orange-500" />
+              <Clock className="h-5 w-5 mt-0.5 shrink-0 text-purple-500" />
               <div className="min-w-0">
                 <p className="text-sm text-muted-foreground">Tiempo Estimado</p>
                 <p className="font-medium">
@@ -135,7 +135,7 @@ export function ItemDetails({
               </div>
             </div>
             <div className="flex items-start gap-3">
-              <Building2 className="h-5 w-5 mt-0.5 shrink-0 text-orange-500" />
+              <Building2 className="h-5 w-5 mt-0.5 shrink-0 text-purple-500" />
               <div className="min-w-0">
                 <p className="text-sm text-muted-foreground">Contratista</p>
                 <p className="font-medium">
@@ -146,7 +146,7 @@ export function ItemDetails({
               </div>
             </div>
             <div className="flex items-start gap-3">
-              <Calendar className="h-5 w-5 text-orange-500 mt-0.5 shrink-0" />
+              <Calendar className="h-5 w-5 text-purple-500 mt-0.5 shrink-0" />
               <div className="min-w-0">
                 <p className="text-sm text-muted-foreground">Creado El</p>
                 <p className="font-medium text-sm sm:text-base">
@@ -155,7 +155,7 @@ export function ItemDetails({
               </div>
             </div>
             <div className="flex items-start gap-3">
-              <Calendar className="h-5 w-5 text-orange-500 mt-0.5 shrink-0" />
+              <Calendar className="h-5 w-5 text-purple-500 mt-0.5 shrink-0" />
               <div className="min-w-0">
                 <p className="text-sm text-muted-foreground">Actualizado El</p>
                 <p className="font-medium text-sm sm:text-base">
@@ -165,7 +165,7 @@ export function ItemDetails({
             </div>
             {isAuditor && item.createdById && (
               <div className="flex items-start gap-3">
-                <User className="h-5 w-5 mt-0.5 shrink-0 text-orange-500" />
+                <User className="h-5 w-5 mt-0.5 shrink-0 text-purple-500" />
                 <div className="min-w-0">
                   <p className="text-sm text-muted-foreground">Creado Por</p>
                   <p className="font-medium text-sm sm:text-base">
@@ -176,7 +176,7 @@ export function ItemDetails({
             )}
             {isAuditor && item.updatedById && (
               <div className="flex items-start gap-3">
-                <User className="h-5 w-5 mt-0.5 shrink-0 text-orange-500" />
+                <User className="h-5 w-5 mt-0.5 shrink-0 text-purple-500" />
                 <div className="min-w-0">
                   <p className="text-sm text-muted-foreground">Actualizado Por</p>
                   <p className="font-medium text-sm sm:text-base">
@@ -219,7 +219,7 @@ export function ItemDetails({
       <div className="flex">
         <Button
           onClick={() => router.push(finalBackUrl)}
-          className="w-full sm:w-auto bg-orange-500 hover:bg-orange-600 text-white"
+          className="w-full sm:w-auto bg-purple-500 hover:bg-purple-600 text-white"
         >
           {backLabel}
         </Button>

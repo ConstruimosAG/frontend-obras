@@ -330,7 +330,7 @@ export function WorkExtrasModal({
                         {!isReadOnly && (
                             <Button
                                 type="submit"
-                                className="w-full sm:w-auto bg-orange-500 hover:bg-orange-600 text-white flex items-center justify-center gap-2"
+                                className="w-full sm:w-auto bg-purple-500 hover:bg-purple-600 text-white flex items-center justify-center gap-2"
                                 disabled={isSubmitting}
                             >
                                 {isSubmitting && <Loader2 className="animate-spin h-4 w-4" />}

@@ -919,7 +919,7 @@ export function QuoteItemForm({
       <div className="flex justify-end gap-4 pt-4">
         <Button
           type="submit"
-          className="w-full bg-orange-500 hover:bg-orange-600 text-white flex items-center justify-center gap-2"
+          className="w-full bg-purple-500 hover:bg-purple-600 text-white flex items-center justify-center gap-2"
           disabled={submitting}
         >
           {submitting && <Loader2 className="animate-spin h-4 w-4" />}

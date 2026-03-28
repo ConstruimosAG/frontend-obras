@@ -37,6 +37,8 @@ interface ItemModalProps {
   coordinator?: boolean;
   contractors?: User[];
   editingQuoteItem?: any;
+  titles?: string[] | null;
+  selectedTitle?: string;
 }
 
 export function ItemModal({
@@ -49,10 +51,15 @@ export function ItemModal({
   coordinator = true,
   contractors = [],
   editingQuoteItem,
+  titles = [],
+  selectedTitle = "",
 }: ItemModalProps) {
   const isEditing = Boolean(item);
   const isEditingQuote = Boolean(editingQuoteItem);
+  const [showSummary, setShowSummary] = useState(false);
+  const [pendingPayload, setPendingPayload] = useState<any>(null);
   const [formData, setFormData] = useState({
+    title: "",
     description: "",
     estimatedExecutionTime: "",
     contractorId: "",
@@ -67,7 +74,11 @@ export function ItemModal({
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
   useEffect(() => {
-    if (!open) return;
+    if (!open) {
+      setShowSummary(false);
+      setPendingPayload(null);
+      return;
+    }
 
     if (editingQuoteItem) {
 
@@ -86,6 +97,7 @@ export function ItemModal({
       const subq = subqData?.item_1 || {};
 
       setFormData({
+        title: item?.title || "",
         description: item?.description || "",
         estimatedExecutionTime: item?.estimatedExecutionTime?.toString() || "",
         contractorId: item?.contractorId?.toString() || "",
@@ -100,6 +112,7 @@ export function ItemModal({
       });
     } else if (item) {
       setFormData({
+        title: item.title || "",
         description: item.description,
         estimatedExecutionTime: item.estimatedExecutionTime?.toString() || "",
         contractorId: item.contractorId?.toString() || "",
@@ -114,6 +127,7 @@ export function ItemModal({
       });
     } else {
       setFormData({
+        title: selectedTitle,
         description: "",
         estimatedExecutionTime: "",
         contractorId: "",
@@ -128,7 +142,24 @@ export function ItemModal({
       });
     }
     setErrors({});
-  }, [item, open, editingQuoteItem]);
+  }, [item, open, editingQuoteItem, selectedTitle]);
+
+  const formatCurrency = (value: string | number) => {
+    if (!value && value !== 0) return "";
+    let strValue = value.toString().replace(/\D/g, "");
+    if (strValue === "") return "";
+    const num = parseFloat(strValue);
+    if (isNaN(num)) return "";
+    return new Intl.NumberFormat("es-CO", {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(num);
+  };
+
+  const handleCurrencyChange = (e: React.ChangeEvent<HTMLInputElement>, field: string) => {
+    let value = e.target.value.replace(/\D/g, "");
+    setFormData(prev => ({ ...prev, [field]: value }));
+  };
 
   // Recalculate Total
   useEffect(() => {
@@ -161,7 +192,15 @@ export function ItemModal({
         }
       }
 
+      if (!isEditingQuote && titles && titles.length > 0) {
+        if (!formData.title?.trim()) {
+          setErrors(prev => ({ ...prev, title: "Debes seleccionar un título" }));
+          return;
+        }
+      }
+
       const payload: any = {
+        title: formData.title || null,
         description: formData.description,
         estimatedExecutionTime: formData.estimatedExecutionTime
           ? Number.parseInt(formData.estimatedExecutionTime, 10)
@@ -194,6 +233,12 @@ export function ItemModal({
         });
       }
 
+      if (!isEditing && !isEditingQuote && !showSummary) {
+        setPendingPayload(payload);
+        setShowSummary(true);
+        return;
+      }
+
       await onSubmit(payload);
       onOpenChange(false);
     } catch (error: any) {
@@ -220,299 +265,396 @@ export function ItemModal({
       <DialogContent className="w-[calc(100%-2rem)] max-w-3xl mx-auto max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-lg sm:text-xl">
-            {isEditingQuote
-              ? "Modificar Cotización Construimos AG"
-              : isEditing
-                ? "Editar Ítem"
-                : "Crear Nuevo Ítem"}
+            {showSummary
+              ? "Resumen de Creación de Ítem"
+              : isEditingQuote
+                ? "Modificar Cotización Construimos AG"
+                : isEditing
+                  ? "Editar Ítem"
+                  : "Crear Nuevo Ítem"}
           </DialogTitle>
           <DialogDescription className="text-sm">
-            {isEditingQuote
-              ? "Modifica la información de la cotización."
-              : isEditing
-                ? "Modifica la información general de este ítem."
-                : "Completa la información para crear un nuevo ítem en la obra."}
+            {showSummary
+              ? "Verifica que la información sea correcta antes de crear el ítem."
+              : isEditingQuote
+                ? "Modifica la información de la cotización."
+                : isEditing
+                  ? "Modifica la información general de este ítem."
+                  : "Completa la información para crear un nuevo ítem en la obra."}
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {isEditing && item && (
-            <div className="space-y-2">
-              <Label>Item ID</Label>
-              <Input value={`#${item.id}`} disabled className="bg-muted" />
-              <p className="text-xs text-muted-foreground">
-                El ID no puede ser modificado
-              </p>
-            </div>
-          )}
-
-          <div className="space-y-2">
-            <Label htmlFor="description">
-              Descripción <span className="text-red-500">*</span>
-            </Label>
-            <Textarea
-              id="description"
-              value={formData.description}
-              onChange={(e) =>
-                setFormData({ ...formData, description: e.target.value })
-              }
-              placeholder="Describe el ítem..."
-              rows={3}
-              aria-invalid={!!errors.description}
-              disabled={isSubmitting || isEditingQuote}
-              className={isEditing ? "bg-muted dark:text-black/80" : "dark:text-black/80"}
-            />
-            {errors.description && (
-              <p className="text-sm text-destructive">{errors.description}</p>
-            )}
-            {isEditing && (
-              <p className="text-xs text-muted-foreground">
-                La descripción no puede ser modificada
-              </p>
-            )}
-          </div>
-
-          {(!isEditing || isEditingQuote) && (
-            <div className="flex items-center space-x-2">
-              <Checkbox
-                id="construimosAG"
-                checked={formData.construimosAG}
-                onCheckedChange={(checked) =>
-                  setFormData({ ...formData, construimosAG: checked as boolean })
-                }
-                disabled={isSubmitting || isEditingQuote}
-              />
-              <Label
-                htmlFor="construimosAG"
-                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
-              >
-                Es realizado por Construimos AG
-              </Label>
-            </div>
-          )}
-
-          {/* Contratista o Cotización */}
-          {(!formData.construimosAG || isEditing) && !isEditingQuote && (
-            <div className="space-y-2">
-              <Label htmlFor="contractorId">Contratista</Label>
-              {isEditing ? (
-                <>
-                  <Input
-                    id="contractorId"
-                    value={selectedContractor?.name || "Sin contratista asignado"}
-                    disabled
-                    className="bg-muted dark:text-black/80"
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    El contratista no puede ser modificado
-                  </p>
-                </>
-              ) : (
-                <div className="flex items-center gap-2">
-                  <Select
-                    value={formData.contractorId || "none"}
-                    onValueChange={(value) => {
-                      if (value === "none") {
-                        setFormData({ ...formData, contractorId: "" });
-                      } else {
-                        setFormData({ ...formData, contractorId: value });
-                      }
-                    }}
-                    disabled={isSubmitting}
-                  >
-                    <SelectTrigger className="w-full dark:text-black/80">
-                      <SelectValue placeholder="Seleccionar contratista (opcional)" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">
-                        <span className="text-muted-foreground">Sin contratista</span>
-                      </SelectItem>
-                      {contractors.map((contractor) => (
-                        <SelectItem
-                          key={contractor.id}
-                          value={contractor.id.toString()}
-                        >
-                          {contractor.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {formData.contractorId && (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="h-10 w-10 shrink-0"
-                      onClick={() => setFormData({ ...formData, contractorId: "" })}
-                      disabled={isSubmitting}
-                    >
-                      <X className="h-4 w-4" />
-                      <span className="sr-only">Limpiar selección</span>
-                    </Button>
+        {showSummary && pendingPayload ? (
+          <div className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="p-4 bg-muted/30 rounded-lg border">
+                <h4 className="text-sm font-semibold text-purple-600 mb-3">Información General</h4>
+                <div className="space-y-2 text-sm">
+                  {pendingPayload.title && (
+                    <div>
+                      <span className="font-medium text-muted-foreground">Título:</span>
+                      <p className="mt-1 font-semibold text-purple-700 dark:text-purple-400">{pendingPayload.title}</p>
+                    </div>
                   )}
+                  <div>
+                    <span className="font-medium text-muted-foreground">Descripción:</span>
+                    <p className="mt-1 break-words">{pendingPayload.description}</p>
+                  </div>
+                  <div>
+                    <span className="font-medium text-muted-foreground">Tiempo Estimado:</span>
+                    <p className="mt-1">{pendingPayload.estimatedExecutionTime} horas</p>
+                  </div>
+                  <div>
+                    <span className="font-medium text-muted-foreground">Realizado por:</span>
+                    <p className="mt-1 font-semibold">{pendingPayload.construimosAG ? "Construimos AG" : (selectedContractor?.name || "Sin contratista asignado")}</p>
+                  </div>
+                </div>
+              </div>
+
+              {pendingPayload.construimosAG && pendingPayload.quoteData && (
+                <div className="p-4 bg-purple-50 dark:bg-purple-900/10 rounded-lg border border-purple-100 dark:border-purple-800">
+                  <h4 className="text-sm font-semibold text-purple-600 mb-3">Cotización Inicial</h4>
+                  <div className="space-y-2 text-sm">
+                    <div>
+                      <span className="font-medium text-muted-foreground">Actividad:</span>
+                      <p className="mt-1 break-words">{pendingPayload.quoteData.actividad}</p>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <span className="font-medium text-muted-foreground">Cantidad:</span>
+                        <p className="mt-1">{pendingPayload.quoteData.cantidad} {pendingPayload.quoteData.unidad}</p>
+                      </div>
+                      <div>
+                        <span className="font-medium text-muted-foreground">Precio Unitario:</span>
+                        <p className="mt-1">${Number(pendingPayload.quoteData.precioUnitario).toLocaleString()}</p>
+                      </div>
+                    </div>
+                    <div>
+                      <span className="font-medium text-muted-foreground">Precio Total:</span>
+                      <p className="mt-1 font-bold text-purple-700 dark:text-purple-400">${Number(pendingPayload.quoteData.precioTotal).toLocaleString()}</p>
+                    </div>
+                    {pendingPayload.quoteData.materialesObservaciones && (
+                      <div>
+                        <span className="font-medium text-muted-foreground">Materiales/Observaciones:</span>
+                        <p className="mt-1 break-words">{pendingPayload.quoteData.materialesObservaciones}</p>
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
             </div>
-          )}
 
-          {(formData.construimosAG || isEditingQuote) && (
-            <div className="space-y-4 p-4 border rounded-md bg-muted/20">
-              <div className="font-semibold text-sm">Información de Cotización Inicial</div>
-
-              <div className="space-y-2">
-                <Label htmlFor="actividad">Actividad <span className="text-red-500">*</span></Label>
-                <Textarea
-                  id="actividad"
-                  value={formData.actividad}
-                  onChange={(e) => setFormData({ ...formData, actividad: e.target.value })}
-                  placeholder="Descripción de la actividad..."
-                  disabled={isSubmitting}
-                />
-                {errors.actividad && <p className="text-sm text-destructive">{errors.actividad}</p>}
-              </div>
-
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div className="space-y-2 min-w-0">
-                  <Label htmlFor="cantidad" className="truncate block">Cantidad <span className="text-red-500">*</span></Label>
-                  <Input
-                    id="cantidad"
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    value={formData.cantidad}
-                    onChange={(e) => setFormData({ ...formData, cantidad: e.target.value })}
-                    disabled={isSubmitting}
-                    className="w-full"
-                  />
-                  {errors.cantidad && <p className="text-sm text-destructive truncate">{errors.cantidad}</p>}
-                </div>
-
-                <div className="space-y-2 min-w-0">
-                  <Label htmlFor="unidad" className="truncate block">Unidad</Label>
-                  <Select
-                    value={formData.unidad}
-                    onValueChange={(value) => setFormData({ ...formData, unidad: value })}
-                    disabled={isSubmitting}
-                  >
-                    <SelectTrigger className="w-full">
-                      <SelectValue className="truncate" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="UND">UND</SelectItem>
-                      <SelectItem value="M">M</SelectItem>
-                      <SelectItem value="M2">M2</SelectItem>
-                      <SelectItem value="M3">M3</SelectItem>
-                      <SelectItem value="ML">ML</SelectItem>
-                      <SelectItem value="KM">KM</SelectItem>
-                      <SelectItem value="KG">KG</SelectItem>
-                      <SelectItem value="LT">LT</SelectItem>
-                      <SelectItem value="GLB">GLB</SelectItem>
-                      <SelectItem value="HR">HR</SelectItem>
-                      <SelectItem value="DIA">DIA</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2 min-w-0">
-                  <Label htmlFor="precioUnitario" className="whitespace-nowrap truncate block">
-                    Precio U. <span className="text-red-500">*</span>
-                  </Label>
-                  <Input
-                    id="precioUnitario"
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    value={formData.precioUnitario}
-                    onChange={(e) => setFormData({ ...formData, precioUnitario: e.target.value })}
-                    disabled={isSubmitting}
-                    className="w-full"
-                  />
-                  {errors.precioUnitario && <p className="text-sm text-destructive truncate">{errors.precioUnitario}</p>}
-                </div>
-
-                <div className="space-y-2 min-w-0">
-                  <Label htmlFor="precioTotal" className="truncate block">Precio Total</Label>
-                  <Input
-                    id="precioTotal"
-                    type="text"
-                    value={formData.precioTotal}
-                    readOnly
-                    className="bg-muted w-full"
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="materialesObservaciones">Materiales y/o Observaciones</Label>
-                <Textarea
-                  id="materialesObservaciones"
-                  value={formData.materialesObservaciones}
-                  onChange={(e) => setFormData({ ...formData, materialesObservaciones: e.target.value })}
-                  placeholder="Materiales requeridos u observaciones adicionales..."
-                  disabled={isSubmitting}
-                  rows={2}
-                />
-              </div>
-            </div>
-          )}
-
-          {/* Other Fields */}
-          <div className="space-y-2">
-            <Label htmlFor="estimatedExecutionTime" className="whitespace-nowrap truncate block">
-              Tiempo Estimado (horas) <span className="text-red-500">*</span>
-            </Label>
-            <Input
-              id="estimatedExecutionTime"
-              type="number"
-              min="1"
-              value={formData.estimatedExecutionTime}
-              onChange={(e) =>
-                setFormData({
-                  ...formData,
-                  estimatedExecutionTime: e.target.value,
-                })
-              }
-              placeholder="Ex: 40"
-              aria-invalid={!!errors.estimatedExecutionTime}
-              disabled={isSubmitting || isEditingQuote}
-              className={isEditing ? "bg-muted dark:text-black/80" : "dark:text-black/80"}
-            />
-            {errors.estimatedExecutionTime && (
-              <p className="text-sm text-destructive">
-                {errors.estimatedExecutionTime}
-              </p>
-            )}
-            {isEditing && (
-              <p className="text-xs text-muted-foreground">
-                El tiempo estimado no puede ser modificado
-              </p>
-            )}
+            <DialogFooter className="flex-col-reverse sm:flex-row gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setShowSummary(false)}
+                className="w-full sm:w-auto"
+                disabled={isSubmitting}
+              >
+                Volver a editar
+              </Button>
+              <Button
+                type="button"
+                onClick={async () => {
+                  try {
+                    await onSubmit(pendingPayload);
+                    onOpenChange(false);
+                  } catch (e) {
+                    console.error(e);
+                  }
+                }}
+                className="w-full sm:w-auto bg-green-500 hover:bg-green-600 text-white flex items-center justify-center gap-2"
+                disabled={isSubmitting}
+              >
+                {isSubmitting && <Loader2 className="animate-spin h-4 w-4" />}
+                Confirmar y crear ítem
+              </Button>
+            </DialogFooter>
           </div>
+        ) : (
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {isEditing && item && !isEditingQuote && (
+              <div className="hidden">
+                <Label>Item ID</Label>
+                <Input value={`#${item.id}`} disabled className="bg-muted" />
+              </div>
+            )}
 
-          <DialogFooter className="flex-col-reverse sm:flex-row gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-              className="w-full sm:w-auto"
-              disabled={isSubmitting}
-            >
-              Cancelar
-            </Button>
-            <Button
-              type="submit"
-              className="w-full sm:w-auto bg-orange-500 hover:bg-orange-600 text-white flex items-center justify-center gap-2"
-              disabled={isSubmitting}
-            >
-              {isSubmitting && <Loader2 className="animate-spin h-4 w-4" />}
-              {isEditingQuote
-                ? "Guardar cotización"
-                : isEditing
-                  ? "Guardar cambios"
-                  : "Crear ítem"}
-            </Button>
-          </DialogFooter>
-        </form>
+            {(!isEditingQuote && titles && titles.length > 0) && (
+              <div className="space-y-2">
+                <Label>Título Padre</Label>
+                <Input value={formData.title} disabled className="bg-muted dark:text-black/80 font-semibold" />
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <Label htmlFor="description">
+                Descripción <span className="text-red-500">*</span>
+              </Label>
+              <Textarea
+                id="description"
+                value={formData.description}
+                onChange={(e) =>
+                  setFormData({ ...formData, description: e.target.value })
+                }
+                placeholder="Describe el ítem..."
+                rows={3}
+                aria-invalid={!!errors.description}
+                disabled={isSubmitting || isEditingQuote}
+                className={isEditing ? "bg-muted dark:text-black/80" : "dark:text-black/80"}
+              />
+              {errors.description && (
+                <p className="text-sm text-destructive">{errors.description}</p>
+              )}
+              {isEditing && (
+                <p className="text-xs text-muted-foreground">
+                  La descripción no puede ser modificada
+                </p>
+              )}
+            </div>
+
+            {(!isEditing || isEditingQuote) && (
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="construimosAG"
+                  checked={formData.construimosAG}
+                  onCheckedChange={(checked) =>
+                    setFormData({ ...formData, construimosAG: checked as boolean })
+                  }
+                  disabled={isSubmitting || isEditingQuote}
+                />
+                <Label
+                  htmlFor="construimosAG"
+                  className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                >
+                  Es realizado por Construimos AG
+                </Label>
+              </div>
+            )}
+
+            {/* Contratista o Cotización */}
+            {(!formData.construimosAG || isEditing) && !isEditingQuote && (
+              <div className="space-y-2">
+                <Label htmlFor="contractorId">Contratista</Label>
+                {isEditing ? (
+                  <>
+                    <Input
+                      id="contractorId"
+                      value={selectedContractor?.name || "Sin contratista asignado"}
+                      disabled
+                      className="bg-muted dark:text-black/80"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      El contratista no puede ser modificado
+                    </p>
+                  </>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <Select
+                      value={formData.contractorId || "none"}
+                      onValueChange={(value) => {
+                        if (value === "none") {
+                          setFormData({ ...formData, contractorId: "" });
+                        } else {
+                          setFormData({ ...formData, contractorId: value });
+                        }
+                      }}
+                      disabled={isSubmitting}
+                    >
+                      <SelectTrigger className="w-full dark:text-black/80">
+                        <SelectValue placeholder="Seleccionar contratista (opcional)" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">
+                          <span className="text-muted-foreground">Sin contratista</span>
+                        </SelectItem>
+                        {contractors.map((contractor) => (
+                          <SelectItem
+                            key={contractor.id}
+                            value={contractor.id.toString()}
+                          >
+                            {contractor.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {formData.contractorId && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-10 w-10 shrink-0"
+                        onClick={() => setFormData({ ...formData, contractorId: "" })}
+                        disabled={isSubmitting}
+                      >
+                        <X className="h-4 w-4" />
+                        <span className="sr-only">Limpiar selección</span>
+                      </Button>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {(formData.construimosAG || isEditingQuote) && (
+              <div className="space-y-4 p-4 border rounded-md bg-muted/20">
+                <div className="font-semibold text-sm">Información de Cotización Inicial</div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="actividad">Actividad <span className="text-red-500">*</span></Label>
+                  <Textarea
+                    id="actividad"
+                    value={formData.actividad}
+                    onChange={(e) => setFormData({ ...formData, actividad: e.target.value })}
+                    placeholder="Descripción de la actividad..."
+                    disabled={isSubmitting}
+                  />
+                  {errors.actividad && <p className="text-sm text-destructive">{errors.actividad}</p>}
+                </div>
+
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div className="space-y-2 min-w-0">
+                    <Label htmlFor="cantidad" className="truncate block">Cantidad <span className="text-red-500">*</span></Label>
+                    <Input
+                      id="cantidad"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={formData.cantidad}
+                      onChange={(e) => setFormData({ ...formData, cantidad: e.target.value })}
+                      disabled={isSubmitting}
+                      className="w-full"
+                    />
+                    {errors.cantidad && <p className="text-sm text-destructive truncate">{errors.cantidad}</p>}
+                  </div>
+
+                  <div className="space-y-2 min-w-0">
+                    <Label htmlFor="unidad" className="truncate block">Unidad</Label>
+                    <Select
+                      value={formData.unidad}
+                      onValueChange={(value) => setFormData({ ...formData, unidad: value })}
+                      disabled={isSubmitting}
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue className="truncate" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="UND">UND</SelectItem>
+                        <SelectItem value="M">M</SelectItem>
+                        <SelectItem value="M2">M2</SelectItem>
+                        <SelectItem value="M3">M3</SelectItem>
+                        <SelectItem value="ML">ML</SelectItem>
+                        <SelectItem value="KM">KM</SelectItem>
+                        <SelectItem value="KG">KG</SelectItem>
+                        <SelectItem value="LT">LT</SelectItem>
+                        <SelectItem value="GLB">GLB</SelectItem>
+                        <SelectItem value="HR">HR</SelectItem>
+                        <SelectItem value="DIA">DIA</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2 min-w-0">
+                    <Label htmlFor="precioUnitario" className="whitespace-nowrap truncate block">
+                      Precio U. <span className="text-red-500">*</span>
+                    </Label>
+                    <Input
+                      id="precioUnitario"
+                      type="text"
+                      value={formatCurrency(formData.precioUnitario)}
+                      onChange={(e) => handleCurrencyChange(e, "precioUnitario")}
+                      placeholder="0"
+                      disabled={isSubmitting}
+                      className="w-full font-medium"
+                    />
+                    {errors.precioUnitario && <p className="text-sm text-destructive truncate">{errors.precioUnitario}</p>}
+                  </div>
+
+                  <div className="space-y-2 min-w-0">
+                    <Label htmlFor="precioTotal" className="truncate block">Precio Total</Label>
+                    <Input
+                      id="precioTotal"
+                      type="text"
+                      value={formatCurrency(formData.precioTotal)}
+                      readOnly
+                      className="bg-muted w-full font-bold"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="materialesObservaciones">Materiales y/o Observaciones</Label>
+                  <Textarea
+                    id="materialesObservaciones"
+                    value={formData.materialesObservaciones}
+                    onChange={(e) => setFormData({ ...formData, materialesObservaciones: e.target.value })}
+                    placeholder="Materiales requeridos u observaciones adicionales..."
+                    disabled={isSubmitting}
+                    rows={2}
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Other Fields */}
+            <div className="space-y-2">
+              <Label htmlFor="estimatedExecutionTime" className="whitespace-nowrap truncate block">
+                Tiempo Estimado (horas) <span className="text-red-500">*</span>
+              </Label>
+              <Input
+                id="estimatedExecutionTime"
+                type="number"
+                min="1"
+                value={formData.estimatedExecutionTime}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    estimatedExecutionTime: e.target.value,
+                  })
+                }
+                placeholder="Ex: 40"
+                aria-invalid={!!errors.estimatedExecutionTime}
+                disabled={isSubmitting || isEditingQuote}
+                className={isEditing ? "bg-muted dark:text-black/80" : "dark:text-black/80"}
+              />
+              {errors.estimatedExecutionTime && (
+                <p className="text-sm text-destructive">
+                  {errors.estimatedExecutionTime}
+                </p>
+              )}
+              {isEditing && (
+                <p className="text-xs text-muted-foreground">
+                  El tiempo estimado no puede ser modificado
+                </p>
+              )}
+            </div>
+
+            <DialogFooter className="flex-col-reverse sm:flex-row gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => onOpenChange(false)}
+                className="w-full sm:w-auto"
+                disabled={isSubmitting}
+              >
+                Cancelar
+              </Button>
+              <Button
+                type="submit"
+                className="w-full sm:w-auto bg-purple-500 hover:bg-purple-600 text-white flex items-center justify-center gap-2"
+                disabled={isSubmitting}
+              >
+                {isSubmitting && <Loader2 className="animate-spin h-4 w-4" />}
+                {isEditingQuote
+                  ? "Guardar cotización"
+                  : isEditing
+                    ? "Guardar cambios"
+                    : "Crear ítem"}
+              </Button>
+            </DialogFooter>
+          </form>
+        )}
       </DialogContent>
     </Dialog>
   );

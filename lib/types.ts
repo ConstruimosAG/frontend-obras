@@ -7,6 +7,7 @@ export interface Work {
   updatedAt: Date;
   personnelRequired?: Record<string, unknown> | null;
   extras?: Record<string, unknown> | null;
+  titles?: string[] | null;
   items?: Item[];
   quote?: QuoteWork;
 }
@@ -24,6 +25,7 @@ export interface Item {
   createdById?: number;
   updatedById?: number;
   quoteItems?: QuoteItem[];
+  title?: string | null;
 }
 
 export interface QuoteItem {

@@ -110,7 +110,7 @@ export default function ContractorQuoteItemPage({
                 <div className="container mx-auto px-3 sm:px-4 py-4 sm:py-8">
                     <div className="max-w-2xl mx-auto">
                         <div className="border rounded-lg overflow-hidden bg-white dark:bg-gray-900">
-                            <div className="bg-orange-500 text-white px-6 py-4">
+                            <div className="bg-purple-500 text-white px-6 py-4">
                                 <h1 className="text-xl font-semibold">
                                     Cotización ya enviada
                                 </h1>
@@ -394,7 +394,7 @@ export default function ContractorQuoteItemPage({
                                             <span className="font-bold text-lg text-gray-900 dark:text-white">
                                                 Total Contratista:
                                             </span>
-                                            <span className="font-bold text-xl text-orange-600 dark:text-orange-400">
+                                            <span className="font-bold text-xl text-purple-600 dark:text-purple-400">
                                                 $
                                                 {Number(
                                                     existingQuote.totalContractor
@@ -417,7 +417,7 @@ export default function ContractorQuoteItemPage({
                                         onClick={() =>
                                             router.push(`/contractor/items/${item.id}/details`)
                                         }
-                                        className="flex-1 px-4 py-2.5 bg-orange-500 hover:bg-orange-600 text-white rounded-lg font-medium transition-colors"
+                                        className="flex-1 px-4 py-2.5 bg-purple-500 hover:bg-purple-600 text-white rounded-lg font-medium transition-colors"
                                     >
                                         Ver detalles del ítem
                                     </button>
@@ -442,7 +442,7 @@ export default function ContractorQuoteItemPage({
                     <div className="lg:col-span-1 space-y-4">
                         {/* Información básica */}
                         <div className="border rounded-lg overflow-hidden">
-                            <div className="bg-orange-500 text-white px-4 py-3">
+                            <div className="bg-purple-500 text-white px-4 py-3">
                                 <h2 className="font-semibold text-sm">Información del Ítem</h2>
                             </div>
                             <div className="p-4 space-y-4">

@@ -228,7 +228,7 @@ export default function ExternContractorPage({ params }: ExternContractorPagePro
                 <div className="border-t pt-6">
                   <button
                     onClick={handleNewQuotation}
-                    className="w-full px-4 py-2.5 bg-orange-500 hover:bg-orange-600 text-white rounded-lg font-medium transition-colors"
+                    className="w-full px-4 py-2.5 bg-purple-500 hover:bg-purple-600 text-white rounded-lg font-medium transition-colors"
                   >
                     Enviar nueva cotización
                   </button>
@@ -253,7 +253,7 @@ export default function ExternContractorPage({ params }: ExternContractorPagePro
               Completa el formulario para enviar tu cotización
             </p>
             {work.quotationDeadline && (
-              <p className="text-sm text-orange-600 dark:text-orange-400 mt-1">
+              <p className="text-sm text-purple-600 dark:text-purple-400 mt-1">
                 Fecha límite:{" "}
                 {new Date(work.quotationDeadline).toLocaleDateString("es-CO", {
                   year: "numeric",
@@ -270,7 +270,7 @@ export default function ExternContractorPage({ params }: ExternContractorPagePro
             {/* Detalles del Item - Sidebar */}
             <div className="lg:col-span-1 space-y-4">
               <div className="border rounded-lg overflow-hidden">
-                <div className="bg-orange-500 text-white px-4 py-3">
+                <div className="bg-purple-500 text-white px-4 py-3">
                   <h2 className="font-semibold text-sm">Información del Ítem</h2>
                 </div>
                 <div className="p-4 space-y-4">

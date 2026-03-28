@@ -63,6 +63,7 @@ export function useItems(workId?: number) {
         if (payload.contractorId !== undefined) body.contractorId = payload.contractorId ?? null;
         if (payload.estimatedExecutionTime !== undefined) body.estimatedExecutionTime = payload.estimatedExecutionTime ?? null;
         if (payload.active !== undefined) body.active = payload.active;
+        if (payload.title !== undefined) body.title = payload.title ?? null;
 
         const res = await fetchClient(`${baseUrl}/api/items`, {
           method: "POST",
@@ -126,6 +127,7 @@ export function useItems(workId?: number) {
         if (payload.contractorId !== undefined) body.contractorId = payload.contractorId ?? null;
         if (payload.estimatedExecutionTime !== undefined) body.estimatedExecutionTime = payload.estimatedExecutionTime ?? null;
         if (payload.active !== undefined) body.active = payload.active;
+        if (payload.title !== undefined) body.title = payload.title ?? null;
 
         const res = await fetchClient(`${baseUrl}/api/items/${id}`, {
           method: "PUT",

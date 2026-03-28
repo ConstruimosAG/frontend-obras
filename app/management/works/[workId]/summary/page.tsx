@@ -262,7 +262,7 @@ export default function WorkSummaryPage({ params }: WorkSummaryPageProps) {
             <main className="min-h-screen bg-background">
                 <div className="container mx-auto px-3 sm:px-4 py-4 sm:py-8">
                     <div className="flex flex-col items-center justify-center py-12">
-                        <Loader2 className="h-8 w-8 animate-spin mb-4 text-orange-500" />
+                        <Loader2 className="h-8 w-8 animate-spin mb-4 text-purple-500" />
                         <p className="text-muted-foreground">Cargando resumen...</p>
                     </div>
                 </div>
@@ -395,60 +395,60 @@ export default function WorkSummaryPage({ params }: WorkSummaryPageProps) {
                         </Card>
 
                         {/* Adicionales y Notas */}
-                        <Card className="border-l-4 border-l-orange-500 shadow-sm overflow-hidden">
-                            <CardHeader className="flex flex-row items-center space-x-3 pb-2 bg-orange-50/30">
-                                <div className="p-2 bg-orange-100 rounded-lg">
-                                    <Wrench className="h-5 w-5 text-orange-600" />
+                        <Card className="border-l-4 border-l-purple-500 shadow-sm overflow-hidden">
+                            <CardHeader className="flex flex-row items-center space-x-3 pb-2 bg-purple-50/30">
+                                <div className="p-2 bg-purple-100 rounded-lg">
+                                    <Wrench className="h-5 w-5 text-purple-600" />
                                 </div>
                                 <CardTitle className="text-lg font-bold">Adicionales y Logística</CardTitle>
                             </CardHeader>
                             <CardContent className="pt-6 space-y-6">
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                     {work.extras?.andamio > 0 && (
-                                        <div className="flex justify-between items-center bg-orange-50/20 p-3 rounded-lg border border-orange-100">
-                                            <span className="text-sm font-semibold text-orange-900">Andamios</span>
-                                            <span className="bg-orange-600 text-white px-2.5 py-1 rounded-md text-xs font-black">{work.extras.andamio}</span>
+                                        <div className="flex justify-between items-center bg-purple-50/20 p-3 rounded-lg border border-purple-100">
+                                            <span className="text-sm font-semibold text-purple-900">Andamios</span>
+                                            <span className="bg-purple-600 text-white px-2.5 py-1 rounded-md text-xs font-black">{work.extras.andamio}</span>
                                         </div>
                                     )}
                                     {work.extras?.equiposDeAltura > 0 && (
-                                        <div className="flex justify-between items-center bg-orange-50/20 p-3 rounded-lg border border-orange-100">
-                                            <span className="text-sm font-semibold text-orange-900">Eq. Altura</span>
-                                            <span className="bg-orange-600 text-white px-2.5 py-1 rounded-md text-xs font-black">{work.extras.equiposDeAltura}</span>
+                                        <div className="flex justify-between items-center bg-purple-50/20 p-3 rounded-lg border border-purple-100">
+                                            <span className="text-sm font-semibold text-purple-900">Eq. Altura</span>
+                                            <span className="bg-purple-600 text-white px-2.5 py-1 rounded-md text-xs font-black">{work.extras.equiposDeAltura}</span>
                                         </div>
                                     )}
                                     {work.extras?.volqueta > 0 && (
-                                        <div className="flex justify-between items-center bg-orange-50/20 p-3 rounded-lg border border-orange-100">
-                                            <span className="text-sm font-semibold text-orange-900">Volquetas</span>
-                                            <span className="bg-orange-600 text-white px-2.5 py-1 rounded-md text-xs font-black">{work.extras.volqueta}</span>
+                                        <div className="flex justify-between items-center bg-purple-50/20 p-3 rounded-lg border border-purple-100">
+                                            <span className="text-sm font-semibold text-purple-900">Volquetas</span>
+                                            <span className="bg-purple-600 text-white px-2.5 py-1 rounded-md text-xs font-black">{work.extras.volqueta}</span>
                                         </div>
                                     )}
                                     {work.extras?.acarreoYTransporte > 0 && (
-                                        <div className="flex justify-between items-center bg-orange-50/20 p-3 rounded-lg border border-orange-100">
-                                            <span className="text-sm font-semibold text-orange-900">Acarreo</span>
-                                            <span className="bg-orange-600 text-white px-2.5 py-1 rounded-md text-xs font-black">{work.extras.acarreoYTransporte}</span>
+                                        <div className="flex justify-between items-center bg-purple-50/20 p-3 rounded-lg border border-purple-100">
+                                            <span className="text-sm font-semibold text-purple-900">Acarreo</span>
+                                            <span className="bg-purple-600 text-white px-2.5 py-1 rounded-md text-xs font-black">{work.extras.acarreoYTransporte}</span>
                                         </div>
                                     )}
                                     {work.extras?.herramientaEspecial > 0 && (
-                                        <div className="flex justify-between items-center bg-orange-50/20 p-3 rounded-lg border border-orange-100">
-                                            <span className="text-sm font-semibold text-orange-900">Herr. Especial</span>
-                                            <span className="bg-orange-600 text-white px-2.5 py-1 rounded-md text-xs font-black">{work.extras.herramientaEspecial}</span>
+                                        <div className="flex justify-between items-center bg-purple-50/20 p-3 rounded-lg border border-purple-100">
+                                            <span className="text-sm font-semibold text-purple-900">Herr. Especial</span>
+                                            <span className="bg-purple-600 text-white px-2.5 py-1 rounded-md text-xs font-black">{work.extras.herramientaEspecial}</span>
                                         </div>
                                     )}
                                     {work.extras?.otroName && (
-                                        <div className="flex justify-between items-center bg-orange-600/5 p-3 rounded-lg border border-dashed border-orange-300 col-span-1 sm:col-span-2">
-                                            <span className="text-sm font-bold text-orange-900">{work.extras.otroName}</span>
-                                            <span className="bg-orange-600 text-white px-2.5 py-1 rounded-md text-xs font-black">{work.extras.otroQuantity || 1}</span>
+                                        <div className="flex justify-between items-center bg-purple-600/5 p-3 rounded-lg border border-dashed border-purple-300 col-span-1 sm:col-span-2">
+                                            <span className="text-sm font-bold text-purple-900">{work.extras.otroName}</span>
+                                            <span className="bg-purple-600 text-white px-2.5 py-1 rounded-md text-xs font-black">{work.extras.otroQuantity || 1}</span>
                                         </div>
                                     )}
                                 </div>
 
                                 {work.extras?.notes && (
-                                    <div className="pt-4 border-t border-orange-100">
+                                    <div className="pt-4 border-t border-purple-100">
                                         <div className="flex items-center gap-2 mb-3">
-                                            <ClipboardList className="h-4 w-4 text-orange-600" />
-                                            <span className="text-xs font-black uppercase tracking-widest text-orange-800">Notas de información de proyectos</span>
+                                            <ClipboardList className="h-4 w-4 text-purple-600" />
+                                            <span className="text-xs font-black uppercase tracking-widest text-purple-800">Notas de información de proyectos</span>
                                         </div>
-                                        <div className="bg-white dark:bg-black/20 p-4 rounded-xl border border-orange-100 shadow-inner">
+                                        <div className="bg-white dark:bg-black/20 p-4 rounded-xl border border-purple-100 shadow-inner">
                                             <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap leading-relaxed">{work.extras.notes}</p>
                                         </div>
                                     </div>
@@ -653,7 +653,7 @@ export default function WorkSummaryPage({ params }: WorkSummaryPageProps) {
 
                         <Button
                             onClick={handleUpdateQuoteWork}
-                            className="w-full bg-orange-500 hover:bg-orange-600"
+                            className="w-full bg-purple-500 hover:bg-purple-600"
                             disabled={updating}
                         >
                             {updating ? (

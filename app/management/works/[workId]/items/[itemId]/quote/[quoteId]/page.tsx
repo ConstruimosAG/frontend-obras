@@ -339,7 +339,7 @@ export default function ManagementQuoteForm({ params }: ManagementQuoteFormProps
       <main className="min-h-screen bg-background">
         <div className="container mx-auto px-3 sm:px-4 py-4 sm:py-8">
           <div className="flex flex-col items-center justify-center py-12">
-            <Loader2 className="h-8 w-8 animate-spin mb-4 text-orange-500" />
+            <Loader2 className="h-8 w-8 animate-spin mb-4 text-purple-500" />
             <p className="text-muted-foreground">Cargando cotización...</p>
           </div>
         </div>
@@ -604,7 +604,7 @@ export default function ManagementQuoteForm({ params }: ManagementQuoteFormProps
 
               <div className="flex justify-between text-sm">
                 <span className="text-gray-500">AG ({agPercentage}%):</span>
-                <span className="font-medium text-orange-600">
+                <span className="font-medium text-purple-600">
                   +${formatCurrency(calculateAGValue())}
                 </span>
               </div>
@@ -631,7 +631,7 @@ export default function ManagementQuoteForm({ params }: ManagementQuoteFormProps
             </Button>
             <Button
               type="submit"
-              className="bg-orange-500 hover:bg-orange-600 text-white"
+              className="bg-purple-500 hover:bg-purple-600 text-white"
               disabled={submitting || agPercentage <= 0}
             >
               {submitting ? (

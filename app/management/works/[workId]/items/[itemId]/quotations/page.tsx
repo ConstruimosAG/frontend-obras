@@ -92,7 +92,7 @@ export default function ItemQuotationsPage({ params }: ItemQuotationsPageProps) 
       <main className="min-h-screen bg-background">
         <div className="container mx-auto px-3 sm:px-4 py-4 sm:py-8">
           <div className="flex flex-col items-center justify-center py-12">
-            <Loader2 className="h-8 w-8 animate-spin mb-4 text-orange-500" />
+            <Loader2 className="h-8 w-8 animate-spin mb-4 text-purple-500" />
             <p className="text-muted-foreground">Cargando cotizaciones...</p>
           </div>
         </div>
@@ -187,7 +187,7 @@ export default function ItemQuotationsPage({ params }: ItemQuotationsPageProps) 
                       <span className="text-muted-foreground">
                         AG ({finalizedQuote.managementPercentage || 0}%):
                       </span>
-                      <span className="font-semibold text-orange-600">
+                      <span className="font-semibold text-purple-600">
                         +${formatCurrency(Number(finalizedQuote.agValue))}
                       </span>
                     </div>
@@ -222,7 +222,7 @@ export default function ItemQuotationsPage({ params }: ItemQuotationsPageProps) 
                       `/management/works/${numericWorkId}/items/${numericItemId}/quote/${finalizedQuote.id}`
                     )
                   }
-                  className="flex-1 bg-orange-500 hover:bg-orange-600"
+                  className="flex-1 bg-purple-500 hover:bg-purple-600"
                 >
                   Editar Cotización
                 </Button>
@@ -321,7 +321,7 @@ export default function ItemQuotationsPage({ params }: ItemQuotationsPageProps) 
                       )}
                       <div className="flex justify-between text-sm font-bold pt-2 border-t">
                         <span>Total:</span>
-                        <span className="text-orange-600">
+                        <span className="text-purple-600">
                           ${formatCurrency(Number(quote.totalContractor))}
                         </span>
                       </div>
@@ -330,7 +330,7 @@ export default function ItemQuotationsPage({ params }: ItemQuotationsPageProps) 
                     {/* Botón seleccionar */}
                     <Button
                       onClick={() => handleSelectQuotation(quote.id)}
-                      className="w-full bg-orange-500 hover:bg-orange-600"
+                      className="w-full bg-purple-500 hover:bg-purple-600"
                     >
                       Seleccionar
                     </Button>

@@ -111,7 +111,7 @@ export function WorksPanel({ coordinator = true, path = "admin" }: { coordinator
         <div className="flex gap-2 items-center">
           {coordinator && (<Button
             onClick={handleCreateWork}
-            className="w-full sm:w-auto bg-orange-500 hover:bg-orange-600 text-white flex items-center gap-2"
+            className="w-full sm:w-auto bg-purple-500 hover:bg-purple-600 text-white flex items-center gap-2"
           >
             <Plus className="h-4 w-4" />
             Crear Obra

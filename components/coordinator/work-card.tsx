@@ -37,7 +37,7 @@ export function WorkCard({ work, onEdit, onDelete, onClick }: WorkCardProps) {
   return (
     <div
       onClick={() => onClick(work.id.toString())}
-      className="group cursor-pointer rounded-lg border border-border bg-card p-4 sm:p-5 shadow-sm transition-all hover:border-orange-500 hover:shadow-md"
+      className="group cursor-pointer rounded-lg border border-border bg-card p-4 sm:p-5 shadow-sm transition-all hover:border-purple-500 hover:shadow-md"
     >
       <div className="flex flex-col gap-3">
         {/* Header con nombre, código y botón editar */}
@@ -84,13 +84,13 @@ export function WorkCard({ work, onEdit, onDelete, onClick }: WorkCardProps) {
         {/* Información del Work */}
         <div className="grid grid-cols-1 xs:grid-cols-2 gap-2 text-sm text-muted-foreground">
           <div className="flex items-center gap-2">
-            <Calendar className="h-4 w-4 text-orange-500 shrink-0" />
+            <Calendar className="h-4 w-4 text-purple-500 shrink-0" />
             <span className="truncate">
               Creado: {formatDate(work.createdAt)}
             </span>
           </div>
           <div className="flex items-center gap-2">
-            <FileText className="h-4 w-4 text-orange-500 shrink-0" />
+            <FileText className="h-4 w-4 text-purple-500 shrink-0" />
             <span>{work.items?.length} actividades</span>
           </div>
           <div className="flex items-center gap-2 col-span-1 xs:col-span-2">

@@ -21,6 +21,7 @@ import {
   AlertCircle,
   CheckCircle2,
   DollarSign,
+  Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -82,6 +83,15 @@ export function ItemsTable({
   const [deactivatingQuote, setDeactivatingQuote] = useState(false);
   const [downloadingPDF, setDownloadingPDF] = useState(false);
   const [editingQuoteItem, setEditingQuoteItem] = useState<any>(null);
+  const [localTitles, setLocalTitles] = useState<string[]>(work.titles || []);
+  const [newTitleModalOpen, setNewTitleModalOpen] = useState(false);
+  const [newTitleValue, setNewTitleValue] = useState("");
+  const [addingTitle, setAddingTitle] = useState(false);
+  const [selectedTitleForNewItem, setSelectedTitleForNewItem] = useState<string>("");
+  const [editTitleModalOpen, setEditTitleModalOpen] = useState(false);
+  const [oldTitleValue, setOldTitleValue] = useState("");
+  const [updatingTitle, setUpdatingTitle] = useState(false);
+  const [deletingTitle, setDeletingTitle] = useState(false);
   const { users, currentUser } = useUsers();
   const contractors = users.filter((u) => u.role === "contractor");
 
@@ -409,6 +419,122 @@ export function ItemsTable({
     return [...result].reverse();
   }, [items, searchTerm]);
 
+  const groupedItems = useMemo(() => {
+    const groups: { title: string; items: Item[] }[] = [];
+    localTitles.forEach((t) => {
+      groups.push({ title: t, items: [] });
+    });
+    filteredItems.forEach((item) => {
+      if (item.title && localTitles.includes(item.title)) {
+        const group = groups.find((g) => g.title === item.title);
+        if (group) group.items.push(item);
+      }
+    });
+    return groups;
+  }, [filteredItems, localTitles]);
+
+  const handleCreateItem = (title: string = "") => {
+    setSelectedItem(null);
+    setEditingQuoteItem(null);
+    setSelectedTitleForNewItem(title);
+    setEditModalOpen(true);
+  };
+
+  const handleAddTitle = async () => {
+    if (!newTitleValue.trim()) return;
+    try {
+      setAddingTitle(true);
+      const baseUrl = process.env.NEXT_PUBLIC_BACKEND_URL;
+      const res = await fetch(`${baseUrl}/api/works/${work.id}/titles`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ title: newTitleValue.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data?.message || "Error al agregar título");
+      }
+      toast.success("Título agregado exitosamente a la obra");
+      setLocalTitles(data.data?.titles || [...localTitles, newTitleValue.trim()]);
+      setNewTitleModalOpen(false);
+      setNewTitleValue("");
+    } catch (error: any) {
+      console.error(error);
+      toast.error(error.message || "Error al agregar título");
+    } finally {
+      setAddingTitle(false);
+    }
+  };
+
+  const handleUpdateTitle = async () => {
+    if (!newTitleValue.trim() || !oldTitleValue) return;
+    try {
+      setUpdatingTitle(true);
+      const baseUrl = process.env.NEXT_PUBLIC_BACKEND_URL;
+      const res = await fetch(`${baseUrl}/api/works/${work.id}/titles`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          oldTitle: oldTitleValue,
+          newTitle: newTitleValue.trim(),
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data?.message || "Error al actualizar título");
+      }
+
+      // Pre-optimistic update in local state
+      const updatedTitles = localTitles.map((t) =>
+        t === oldTitleValue ? newTitleValue.trim() : t
+      );
+      setLocalTitles(updatedTitles);
+
+      // Now update all items that had the old title
+      const itemsToUpdate = items.filter((item) => item.title === oldTitleValue);
+      for (const item of itemsToUpdate) {
+        await updateItem(item.id, { title: newTitleValue.trim() });
+      }
+
+      toast.success("Título y sus ítems actualizados exitosamente");
+      setEditTitleModalOpen(false);
+      setNewTitleValue("");
+      setOldTitleValue("");
+      window.location.reload(); // Refresh to ensure everything is synced
+    } catch (error: any) {
+      console.error(error);
+      toast.error(error.message || "Error al actualizar título");
+    } finally {
+      setUpdatingTitle(false);
+    }
+  };
+
+  const handleDeleteTitle = async (titleToDelete: string) => {
+    try {
+      setDeletingTitle(true);
+      const baseUrl = process.env.NEXT_PUBLIC_BACKEND_URL;
+      const res = await fetch(`${baseUrl}/api/works/${work.id}/titles`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ title: titleToDelete }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data?.message || "Error al eliminar título");
+      }
+      toast.success("Título eliminado de la obra");
+      setLocalTitles(localTitles.filter((t) => t !== titleToDelete));
+    } catch (error: any) {
+      console.error(error);
+      toast.error(error.message || "Error al eliminar título");
+    } finally {
+      setDeletingTitle(false);
+    }
+  };
+
   const formatDate = (date: string | Date) => {
     const d = typeof date === "string" ? new Date(date) : date;
     return d.toLocaleDateString("es-ES", {
@@ -470,12 +596,6 @@ export function ItemsTable({
     router.push(`/${path}/works/${work.id}/items/${itemId}/quotations`);
   };
 
-  const handleCreateItem = () => {
-    setSelectedItem(null);
-    setEditingQuoteItem(null);
-    setEditModalOpen(true);
-  };
-
   const handleEditSubmit = async (data: any) => {
     setLocalSubmitting(true);
     try {
@@ -521,6 +641,8 @@ export function ItemsTable({
       } else if (selectedItem) {
         // El hook updateItem solo envía campos válidos al API
         await updateItem(selectedItem.id, data);
+        toast.success("Ítem actualizado exitosamente");
+        window.location.reload();
       } else {
         // Extraemos solo lo que necesitamos para el QuoteItem (no va al API de items)
         const { construimosAG, quoteData, ...itemPayload } = data;
@@ -728,11 +850,14 @@ export function ItemsTable({
 
               {!work.finalized && (
                 <Button
-                  onClick={handleCreateItem}
-                  className="flex-1 sm:flex-none bg-orange-500 hover:bg-orange-600 text-white"
+                  onClick={() => {
+                    setNewTitleValue("");
+                    setNewTitleModalOpen(true);
+                  }}
+                  className="flex-1 sm:flex-none bg-blue-500 hover:bg-blue-600 text-white"
                 >
                   <Plus className="h-4 w-4 mr-1" />
-                  Crear Ítem
+                  Nuevo Título
                 </Button>
               )}
             </div>
@@ -740,323 +865,452 @@ export function ItemsTable({
         </div>
       </div>
 
-      {filteredItems.length > 0 ? (
-        <>
-          {/* Desktop Table */}
-          <div className="hidden md:block border rounded-lg overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow className="bg-muted/50">
-                  <TableHead className="min-w-50">Descripción</TableHead>
-                  <TableHead className="whitespace-nowrap">Creado</TableHead>
-                  <TableHead className="whitespace-nowrap">Tiempo Est.</TableHead>
-                  <TableHead className="whitespace-nowrap">Personal</TableHead>
-                  <TableHead className="whitespace-nowrap">Estado</TableHead>
-                  <TableHead className="text-right whitespace-nowrap">Acciones</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredItems.map((item: Item) => {
-                  const isFinished = hasFinishedQuotation(item);
-                  return (
-                    <TableRow key={item.id}>
-                      <TableCell className="max-w-62.5">
-                        <p className="truncate">{item.description}</p>
-                      </TableCell>
-                      <TableCell className="text-sm whitespace-nowrap">
-                        {formatDateLong(item.createdAt)}
-                      </TableCell>
-                      <TableCell className="whitespace-nowrap">
-                        {formatEstimatedTime(item.estimatedExecutionTime)}
-                      </TableCell>
-                      <TableCell className="max-w-37.5">
-                        <p className="truncate">
-                          {getPersonnelDisplay(item)}
-                        </p>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex gap-1 flex-wrap">
-                          <Badge
-                            variant={item.active ? "default" : "secondary"}
-                            className={
-                              item.active
-                                ? "bg-green-500 hover:bg-green-600"
-                                : "bg-red-500 hover:bg-red-600 text-white"
-                            }
-                          >
-                            {item.active ? "Activo" : "Inactivo"}
-                          </Badge>
-                          {management && isFinished && (
-                            <Badge className="bg-blue-500 hover:bg-blue-600">
-                              Finalizado
-                            </Badge>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center justify-end gap-1 flex-wrap">
-                          {management && !isFinished && (
-                            <Button
-                              variant="default"
-                              size="sm"
-                              onClick={() => handleViewQuotations(item.id)}
-                              className="h-8 px-2 bg-orange-500 hover:bg-orange-600"
-                            >
-                              <FileText className="h-3.5 w-3.5" />
-                            </Button>
-                          )}
+      {groupedItems.length > 0 ? (
+        <div className="space-y-8">
+          {groupedItems.map((group, groupIdx) => (
+            <div key={groupIdx} className="space-y-4">
+              <div className="flex justify-between items-center border-b pb-2">
+                <div className="flex items-center gap-3">
+                  <h2 className="text-lg font-bold text-foreground">{group.title}</h2>
+                  {!work.finalized && !management && (
+                    <div className="flex items-center gap-1">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 text-blue-500 hover:text-blue-600 hover:bg-blue-50"
+                        onClick={() => {
+                          setOldTitleValue(group.title);
+                          setNewTitleValue(group.title);
+                          setEditTitleModalOpen(true);
+                        }}
+                      >
+                        <Pencil className="h-3.5 w-3.5" />
+                      </Button>
+                      {group.items.length === 0 && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 text-red-500 hover:text-red-600 hover:bg-red-50"
+                          onClick={() => handleDeleteTitle(group.title)}
+                          disabled={deletingTitle}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
+                  )}
+                </div>
+                {!work.finalized && !management && (
+                  <Button
+                    size="sm"
+                    onClick={() => handleCreateItem(group.title)}
+                    className="bg-green-500 hover:bg-green-600 text-white h-7 px-2"
+                  >
+                    <Plus className="h-4 w-4 mr-1" />
+                    Ítem
+                  </Button>
+                )}
+              </div>
 
-                          {management && isFinished && (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleDeactivateQuote(item)}
-                              className="h-8 px-2 text-red-600 hover:text-red-700"
-                              disabled={deactivatingQuote}
-                            >
-                              <Ban className="h-3.5 w-3.5" />
-                            </Button>
-                          )}
+              {group.items.length === 0 ? (
+                <p className="text-sm text-muted-foreground italic">No hay ítems en este título aún.</p>
+              ) : (
+                <>
+                  {/* Desktop Table */}
+                  <div className="hidden md:block border rounded-lg overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="bg-muted/50">
+                          <TableHead className="min-w-40">Descripción</TableHead>
+                          <TableHead className="whitespace-nowrap">Personal</TableHead>
+                          <TableHead className="whitespace-nowrap">Tiempo Est.</TableHead>
+                          <TableHead className="whitespace-nowrap">Und.</TableHead>
+                          <TableHead className="whitespace-nowrap">Cant.</TableHead>
+                          <TableHead className="whitespace-nowrap">V. Unit.</TableHead>
+                          <TableHead className="whitespace-nowrap">V. Total</TableHead>
+                          <TableHead className="whitespace-nowrap">Creado</TableHead>
+                          <TableHead className="whitespace-nowrap">Estado</TableHead>
+                          <TableHead className="text-right whitespace-nowrap">Acciones</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {group.items.map((item: Item) => {
+                          const isFinished = hasFinishedQuotation(item);
+                          return (
+                            <TableRow key={item.id}>
+                              <TableCell className="max-w-[200px]">
+                                <p className="font-medium line-clamp-2">{item.description}</p>
+                              </TableCell>
+                              <TableCell className="whitespace-nowrap">
+                                <span className="text-sm font-semibold text-purple-700 dark:text-purple-400">
+                                  {getPersonnelDisplay(item)}
+                                </span>
+                              </TableCell>
+                              <TableCell className="whitespace-nowrap text-sm">
+                                {formatEstimatedTime(item.estimatedExecutionTime)}
+                              </TableCell>
 
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleViewDetails(item.id)}
-                            className="h-8 px-2"
-                          >
-                            <Eye className="h-3.5 w-3.5" />
-                          </Button>
+                              {(() => {
+                                const agQuote = item.quoteItems?.find(q => q.ConstruimosAG);
+                                if (agQuote) {
+                                  let subq: any = agQuote.subquotations;
+                                  if (typeof subq === "string") {
+                                    try { subq = JSON.parse(subq); } catch (e) { subq = {}; }
+                                  }
+                                  const data = subq?.item_1 || {};
+                                  return (
+                                    <>
+                                      <TableCell className="text-sm">{data.unit || "UND"}</TableCell>
+                                      <TableCell className="text-sm">{data.measure || "0"}</TableCell>
+                                      <TableCell className="text-sm font-medium">
+                                        ${Number(data.unitValue || 0).toLocaleString()}
+                                      </TableCell>
+                                      <TableCell className="text-sm font-bold text-purple-600">
+                                        ${Number(data.totalValue || 0).toLocaleString()}
+                                      </TableCell>
+                                    </>
+                                  );
+                                } else {
+                                  return (
+                                    <TableCell colSpan={4} className="text-xs text-muted-foreground italic text-center">
+                                      Esperando cotizaciones de contratistas
+                                    </TableCell>
+                                  );
+                                }
+                              })()}
 
-                          {!management && (
-                            <>
-                              {!coordinator && (
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => copyExternalLink(item)}
-                                  className="h-8 px-2 text-blue-600 hover:text-blue-700"
-                                >
-                                  <Link2 className="h-3.5 w-3.5" />
-                                </Button>
-                              )}
-
-
-
-                              {!coordinator && (
-                                <>
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => handleEdit(item)}
-                                    className="h-8 px-2"
+                              <TableCell className="text-xs whitespace-nowrap text-muted-foreground">
+                                {formatDate(item.createdAt)}
+                              </TableCell>
+                              <TableCell>
+                                <div className="flex gap-1 flex-wrap">
+                                  <Badge
+                                    variant={item.active ? "default" : "secondary"}
+                                    className={
+                                      item.active
+                                        ? "bg-green-500 hover:bg-green-600 border-none px-1.5 h-5 text-[10px]"
+                                        : "bg-red-500 hover:bg-red-600 text-white border-none px-1.5 h-5 text-[10px]"
+                                    }
                                   >
-                                    <Pencil className="h-3.5 w-3.5" />
-                                  </Button>
-                                  {!coordinator && !management && item.quoteItems?.some(q => q.ConstruimosAG) && (
+                                    {item.active ? "Activo" : "Inactivo"}
+                                  </Badge>
+                                  {management && isFinished && (
+                                    <Badge className="bg-blue-500 hover:bg-blue-600 border-none px-1.5 h-5 text-[10px]">
+                                      Finalizado
+                                    </Badge>
+                                  )}
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                <div className="flex items-center justify-end gap-1 flex-wrap">
+                                  {management && !isFinished && (
+                                    <Button
+                                      variant="default"
+                                      size="sm"
+                                      onClick={() => handleViewQuotations(item.id)}
+                                      className="h-8 px-2 bg-orange-500 hover:bg-orange-600"
+                                    >
+                                      <FileText className="h-3.5 w-3.5" />
+                                    </Button>
+                                  )}
+
+                                  {management && isFinished && (
                                     <Button
                                       variant="outline"
                                       size="sm"
-                                      onClick={() => handleEditQuote(item, item.quoteItems!.find(q => q.ConstruimosAG))}
-                                      title="Modificar Cotización"
-                                      className="h-8 px-2 text-orange-600 hover:text-orange-700 hover:bg-orange-50"
+                                      onClick={() => handleDeactivateQuote(item)}
+                                      className="h-8 px-2 text-red-600 hover:text-red-700"
+                                      disabled={deactivatingQuote}
                                     >
-                                      <DollarSign className="h-3.5 w-3.5" />
+                                      <Ban className="h-3.5 w-3.5" />
                                     </Button>
                                   )}
+
                                   <Button
                                     variant="outline"
                                     size="sm"
-                                    onClick={() => handleDelete(item)}
-                                    className="h-8 px-2 text-destructive hover:text-destructive"
+                                    onClick={() => handleViewDetails(item.id)}
+                                    className="h-8 px-2"
                                   >
-                                    {item.active ? (
-                                      <X className="h-4 w-4" />
-                                    ) : (
-                                      <Check className="h-4 w-4" />
-                                    )}
+                                    <Eye className="h-3.5 w-3.5" />
                                   </Button>
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => handlePermanentDelete(item)}
-                                    className="h-8 px-2 text-destructive hover:text-destructive hover:bg-destructive/10"
-                                    disabled={submitting}
-                                  >
-                                    <CircleX className="h-4 w-4" />
-                                  </Button>
-                                </>
-                              )}
-                            </>
-                          )}
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          </div>
 
-          {/* Mobile Cards */}
-          <div className="md:hidden space-y-3">
-            {filteredItems.map((item: Item) => {
-              const isFinished = hasFinishedQuotation(item);
-              return (
-                <div key={item.id} className="border rounded-lg bg-card p-4 space-y-3">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2 mb-2 flex-wrap">
-                        <Badge
-                          variant={item.active ? "default" : "secondary"}
-                          className={
-                            item.active
-                              ? "bg-green-500 hover:bg-green-600"
-                              : "bg-red-500 hover:bg-red-600 text-white"
-                          }
-                        >
-                          {item.active ? "Activo" : "Inactivo"}
-                        </Badge>
-                        {management && isFinished && (
-                          <Badge className="bg-blue-500 hover:bg-blue-600">
-                            Finalizado
-                          </Badge>
-                        )}
-                      </div>
-                      <p className="text-sm text-foreground line-clamp-2">
-                        {item.description}
-                      </p>
-                    </div>
+                                  {!management && (
+                                    <>
+                                      {!coordinator && (
+                                        <Button
+                                          variant="outline"
+                                          size="sm"
+                                          onClick={() => copyExternalLink(item)}
+                                          className="h-8 px-2 text-blue-600 hover:text-blue-700"
+                                        >
+                                          <Link2 className="h-3.5 w-3.5" />
+                                        </Button>
+                                      )}
+
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => handleEdit(item)}
+                                        className="h-8 px-2"
+                                      >
+                                        <Pencil className="h-3.5 w-3.5" />
+                                      </Button>
+
+                                      {item.quoteItems?.some(q => q.ConstruimosAG) && (
+                                        <Button
+                                          variant="outline"
+                                          size="sm"
+                                          onClick={() => handleEditQuote(item, item.quoteItems!.find(q => q.ConstruimosAG))}
+                                          title="Modificar Cotización"
+                                          className="h-8 px-2 text-orange-600 hover:text-orange-700 hover:bg-orange-50"
+                                        >
+                                          <DollarSign className="h-3.5 w-3.5" />
+                                        </Button>
+                                      )}
+
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => handlePermanentDelete(item)}
+                                        className="h-8 px-2 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                        disabled={submitting}
+                                      >
+                                        <CircleX className="h-4 w-4" />
+                                      </Button>
+
+                                      {!coordinator && (
+                                        <>
+                                          <Button
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() => handleDelete(item)}
+                                            className="h-8 px-2 text-destructive hover:text-destructive"
+                                          >
+                                            {item.active ? (
+                                              <X className="h-4 w-4" />
+                                            ) : (
+                                              <Check className="h-4 w-4" />
+                                            )}
+                                          </Button>
+                                        </>
+                                      )}
+                                    </>
+                                  )}
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
                   </div>
 
-                  <div className="grid grid-cols-1 gap-2 text-sm text-muted-foreground">
-                    <div className="flex items-center gap-2">
-                      <Calendar className="h-4 w-4 text-primary shrink-0" />
-                      <span className="truncate">{formatDate(item.createdAt)}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Clock className="h-4 w-4 text-primary shrink-0" />
-                      <span>{formatEstimatedTime(item.estimatedExecutionTime)}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <User className="h-4 w-4 text-primary shrink-0" />
-                      <span className="truncate">
-                        {getPersonnelDisplay(item)}
-                      </span>
-                    </div>
-                  </div>
+                  {/* Mobile Cards */}
+                  <div className="md:hidden space-y-3">
+                    {group.items.map((item: Item) => {
+                      const isFinished = hasFinishedQuotation(item);
+                      return (
+                        <div key={item.id} className="border rounded-lg bg-card p-4 space-y-3">
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-2 mb-2 flex-wrap">
+                                <Badge
+                                  variant={item.active ? "default" : "secondary"}
+                                  className={
+                                    item.active
+                                      ? "bg-green-500 hover:bg-green-600 border-none px-1.5 h-5 text-[10px]"
+                                      : "bg-red-500 hover:bg-red-600 text-white border-none px-1.5 h-5 text-[10px]"
+                                  }
+                                >
+                                  {item.active ? "Activo" : "Inactivo"}
+                                </Badge>
+                                {management && isFinished && (
+                                  <Badge className="bg-blue-500 hover:bg-blue-600 border-none px-1.5 h-5 text-[10px]">
+                                    Finalizado
+                                  </Badge>
+                                )}
+                              </div>
+                              <p className="text-sm text-foreground line-clamp-2">
+                                {item.description}
+                              </p>
+                            </div>
+                          </div>
 
-                  <div className="flex items-center gap-2 pt-2 border-t flex-wrap">
-                    {management ? (
-                      <>
-                        {!isFinished && (
-                          <Button
-                            variant="default"
-                            size="sm"
-                            onClick={() => handleViewQuotations(item.id)}
-                            className="flex-1 bg-orange-500 hover:bg-orange-600"
-                          >
-                            <FileText className="h-4 w-4 mr-1" />
-                            Cotizaciones
-                          </Button>
-                        )}
-                        {isFinished && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleDeactivateQuote(item)}
-                            className="flex-1 text-red-600 hover:text-red-700"
-                            disabled={deactivatingQuote}
-                          >
-                            <Ban className="h-4 w-4 mr-1" />
-                            Desactivar
-                          </Button>
-                        )}
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleViewDetails(item.id)}
-                          className="flex-1"
-                        >
-                          <Eye className="h-4 w-4 mr-1" />
-                          Detalles
-                        </Button>
-                      </>
-                    ) : (
-                      <>
-                        {!coordinator && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => copyExternalLink(item)}
-                            className="flex-1 text-blue-600 hover:text-blue-700"
-                          >
-                            <Link2 className="h-4 w-4 mr-1" />
-                            Link
-                          </Button>
-                        )}
+                          <div className="grid grid-cols-2 gap-y-3 gap-x-2 text-sm">
+                            <div className="flex flex-col gap-1">
+                              <span className="text-[10px] uppercase text-muted-foreground font-bold">Personal</span>
+                              <div className="flex items-center gap-2">
+                                <User className="h-3 w-3 text-purple-500" />
+                                <span className="font-semibold text-purple-700">{getPersonnelDisplay(item)}</span>
+                              </div>
+                            </div>
+                            <div className="flex flex-col gap-1">
+                              <span className="text-[10px] uppercase text-muted-foreground font-bold">Tiempo Est.</span>
+                              <div className="flex items-center gap-2">
+                                <Clock className="h-3 w-3 text-purple-500" />
+                                <span>{formatEstimatedTime(item.estimatedExecutionTime)}</span>
+                              </div>
+                            </div>
 
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleViewDetails(item.id)}
-                          className="flex-1"
-                        >
-                          <Eye className="h-4 w-4 mr-1" />
-                          Detalles
-                        </Button>
-                        {!coordinator && (
-                          <>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleEdit(item)}
-                              className="flex-1"
-                            >
-                              <Pencil className="h-4 w-4 mr-1" />
-                              Editar
-                            </Button>
-                            {!coordinator && !management && item.quoteItems?.some(q => q.ConstruimosAG) && (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => handleEditQuote(item, item.quoteItems!.find(q => q.ConstruimosAG))}
-                                className="flex-1 text-orange-600 hover:text-orange-700 hover:bg-orange-50 border-orange-200"
-                              >
-                                <DollarSign className="h-4 w-4 mr-1" />
-                                Mod. Cot.
-                              </Button>
-                            )}
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleDelete(item)}
-                              className={
-                                item.active
-                                  ? "text-destructive hover:text-destructive"
-                                  : "text-green-500 hover:text-green-600"
+                            {(() => {
+                              const agQuote = item.quoteItems?.find(q => q.ConstruimosAG);
+                              if (agQuote) {
+                                let subq: any = agQuote.subquotations;
+                                if (typeof subq === "string") {
+                                  try { subq = JSON.parse(subq); } catch (e) { subq = {}; }
+                                }
+                                const data = subq?.item_1 || {};
+                                return (
+                                  <div className="col-span-2 bg-purple-50 dark:bg-purple-900/10 p-2 rounded-md border border-purple-100 dark:border-purple-800 grid grid-cols-3 gap-2">
+                                    <div className="flex flex-col">
+                                      <span className="text-[9px] text-purple-600 font-bold uppercase">Cant/Und</span>
+                                      <span className="text-xs">{data.measure} {data.unit}</span>
+                                    </div>
+                                    <div className="flex flex-col text-center">
+                                      <span className="text-[9px] text-purple-600 font-bold uppercase">V. Unit</span>
+                                      <span className="text-xs font-medium">${Number(data.unitValue || 0).toLocaleString()}</span>
+                                    </div>
+                                    <div className="flex flex-col text-right">
+                                      <span className="text-[9px] text-purple-600 font-bold uppercase">V. Total</span>
+                                      <span className="text-xs font-bold text-purple-700">${Number(data.totalValue || 0).toLocaleString()}</span>
+                                    </div>
+                                  </div>
+                                );
+                              } else {
+                                return (
+                                  <div className="col-span-2 bg-muted/30 p-2 rounded-md text-xs text-center italic text-muted-foreground">
+                                    Esperando cotizaciones de contratistas
+                                  </div>
+                                );
                               }
-                            >
-                              {item.active ? <X className="h-4 w-4" /> : <Check className="h-4 w-4" />}
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handlePermanentDelete(item)}
-                              className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                              disabled={submitting}
-                            >
-                              <CircleX className="h-4 w-4" />
-                            </Button>
-                          </>
-                        )}
-                      </>
-                    )}
+                            })()}
+
+                            <div className="flex items-center gap-2 text-muted-foreground">
+                              <Calendar className="h-3 w-3" />
+                              <span className="text-[11px]">{formatDate(item.createdAt)}</span>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-2 pt-2 border-t flex-wrap">
+                            {management ? (
+                              <>
+                                {!isFinished && (
+                                  <Button
+                                    variant="default"
+                                    size="sm"
+                                    onClick={() => handleViewQuotations(item.id)}
+                                    className="flex-1 bg-orange-500 hover:bg-orange-600"
+                                  >
+                                    <FileText className="h-4 w-4 mr-1" />
+                                    Cotizaciones
+                                  </Button>
+                                )}
+                                {isFinished && (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => handleDeactivateQuote(item)}
+                                    className="flex-1 text-red-600 hover:text-red-700"
+                                    disabled={deactivatingQuote}
+                                  >
+                                    <Ban className="h-4 w-4 mr-1" />
+                                    Desactivar
+                                  </Button>
+                                )}
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleViewDetails(item.id)}
+                                  className="flex-1"
+                                >
+                                  <Eye className="h-4 w-4 mr-1" />
+                                  Detalles
+                                </Button>
+                              </>
+                            ) : (
+                              <>
+                                {!coordinator && (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => copyExternalLink(item)}
+                                    className="flex-1 text-blue-600 hover:text-blue-700"
+                                  >
+                                    <Link2 className="h-4 w-4 mr-1" />
+                                    Link
+                                  </Button>
+                                )}
+
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleEdit(item)}
+                                  className="flex-1"
+                                >
+                                  <Pencil className="h-4 w-4 mr-1" />
+                                  Editar
+                                </Button>
+
+                                {item.quoteItems?.some(q => q.ConstruimosAG) && (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => handleEditQuote(item, item.quoteItems!.find(q => q.ConstruimosAG))}
+                                    className="flex-1 text-orange-600 hover:text-orange-700 hover:bg-orange-50 border-orange-200"
+                                  >
+                                    <DollarSign className="h-4 w-4 mr-1" />
+                                    Mod. Cot.
+                                  </Button>
+                                )}
+
+                                {!management && (<Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handlePermanentDelete(item)}
+                                  className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                                  disabled={submitting}
+                                >
+                                  <CircleX className="h-4 w-4" />
+                                </Button>)}
+
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleViewDetails(item.id)}
+                                  className="flex-1"
+                                >
+                                  <Eye className="h-4 w-4 mr-1" />
+                                  Detalles
+                                </Button>
+                                {!coordinator && (
+                                  <>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => handleDelete(item)}
+                                      className={
+                                        item.active
+                                          ? "text-destructive hover:text-destructive"
+                                          : "text-green-500 hover:text-green-600"
+                                      }
+                                    >
+                                      {item.active ? <X className="h-4 w-4" /> : <Check className="h-4 w-4" />}
+                                    </Button>
+                                  </>
+                                )}
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
-                </div>
-              );
-            })}
-          </div>
-        </>
+                </>
+              )}
+            </div>
+          ))}
+        </div>
       ) : (
         <div className="text-center py-8 sm:py-12 text-muted-foreground border rounded-lg">
           {searchTerm ? (
@@ -1219,8 +1473,76 @@ export function ItemsTable({
         </DialogContent>
       </Dialog>
 
+      <Dialog open={newTitleModalOpen} onOpenChange={setNewTitleModalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Nuevo Título</DialogTitle>
+            <DialogDescription>Agrega una nueva agrupación para clasificar ítems.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label>Nombre del Título</Label>
+              <Input
+                placeholder="Ej: Preparación..."
+                value={newTitleValue}
+                onChange={(e) => setNewTitleValue(e.target.value)}
+                disabled={addingTitle}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && newTitleValue.trim()) handleAddTitle();
+                }}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => {
+              setNewTitleValue("");
+              setNewTitleModalOpen(false);
+            }} disabled={addingTitle}>Cancelar</Button>
+            <Button onClick={handleAddTitle} className="bg-purple-500 hover:bg-purple-600 text-white" disabled={addingTitle || !newTitleValue.trim()}>
+              {addingTitle ? <Loader2 className="animate-spin h-4 w-4 mr-2" /> : null}
+              Guardar Título
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={editTitleModalOpen} onOpenChange={setEditTitleModalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Editar Título</DialogTitle>
+            <DialogDescription>Cambia el nombre de la agrupación. Todos los ítems asociados se actualizarán.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label>Nuevo Nombre del Título</Label>
+              <Input
+                placeholder="Ej: Nueva Preparación..."
+                value={newTitleValue}
+                onChange={(e) => setNewTitleValue(e.target.value)}
+                disabled={updatingTitle}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && newTitleValue.trim()) handleUpdateTitle();
+                }}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => {
+              setNewTitleValue("");
+              setEditTitleModalOpen(false);
+            }} disabled={updatingTitle}>Cancelar</Button>
+            <Button onClick={handleUpdateTitle} className="bg-purple-500 hover:bg-purple-600 text-white" disabled={updatingTitle || !newTitleValue.trim()}>
+              {updatingTitle ? <Loader2 className="animate-spin h-4 w-4 mr-2" /> : null}
+              Actualizar Título
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Otros Modals */}
       <ItemModal
+        titles={localTitles}
+        selectedTitle={selectedTitleForNewItem}
         open={editModalOpen}
         onOpenChange={setEditModalOpen}
         item={selectedItem}
