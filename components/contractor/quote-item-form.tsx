@@ -1,12 +1,13 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
-import { z } from "zod";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
+import { Separator } from "@/components/ui/separator";
 import {
   Select,
   SelectContent,
@@ -14,23 +15,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Loader2, Plus, Trash2 } from "lucide-react";
+import { Loader2, Save, FileText, Calendar, Building2, DollarSign, Percent, Info } from "lucide-react";
 import { toast } from "sonner";
 import { useQuoteItems } from "@/hooks/items/useQuoteItems";
 
-// Schema de validación
-const quoteItemSchema = z.object({
-  measure: z.number().positive("La cantidad debe ser mayor a 0"),
-  unit: z.string().min(1, "Debes seleccionar una unidad"),
-  unitValue: z.number().min(0, "El valor unitario no puede ser negativo"),
-  materialsDesc: z.string().optional(),
-  materialCost: z.number().min(0, "El costo de materiales no puede ser negativo"),
-  administrationPerc: z.number().min(0).max(100, "Debe estar entre 0 y 100"),
-  contingenciesPerc: z.number().min(0).max(100, "Debe estar entre 0 y 100"),
-  profitPerc: z.number().min(0).max(100, "Debe estar entre 0 y 100"),
-});
-
-// Opciones de unidad (del código original)
 const unitOptions = [
   { value: "UND", label: "UND" },
   { value: "M", label: "M" },
@@ -45,29 +33,14 @@ const unitOptions = [
   { value: "DIA", label: "DIA" },
 ];
 
-interface SubquotationItem {
-  id: string;
-  proceso: string;
-  medida: number;
-  unidad: string;
-  valorUnitario: number;
-  valorTotal: number;
-}
-
 interface QuoteItemFormProps {
-  item: any; // Item from DB
+  item: any;
   currentUser: any | null;
-  ivaPercent?: number; // default 19
+  ivaPercent?: number;
   onSaved?: (created: any) => void;
-  initial?: Partial<any>; // para edición
+  initial?: Partial<any>;
   isEditing?: boolean;
-  isExternal?: boolean; // Para contratistas externos
-  caseData?: {
-    workOrderNumber: string;
-    location: string;
-    quotationDescription: string;
-    caseDescription: string;
-  };
+  isExternal?: boolean;
 }
 
 export function QuoteItemForm({
@@ -78,854 +51,360 @@ export function QuoteItemForm({
   initial,
   isEditing = false,
   isExternal = false,
-  caseData,
 }: QuoteItemFormProps) {
   const { createQuoteItem, updateQuoteItem, submitting } = useQuoteItems();
 
-  // Campos para contratistas externos
-  const [externalName, setExternalName] = useState<string>("");
-  const [externalIdentifier, setExternalIdentifier] = useState<string>("");
+  // Parse initial data safely
+  const {
+    subquotations: rawSubq,
+    externalContractorName: initExtName = "",
+    externalContractorIdentifier: initExtId = "",
+    materials: initMaterials,
+    administrationPercentage: initAdmin = 0,
+    contingenciesPercentage: initCont = 0,
+    profitPercentage: initProfit = 0,
+    vat: initVat = false,
+  } = initial || {};
 
-  // Estado para subitems (como el array de quotationItems del original)
-  const [subquotationItems, setSubquotationItems] = useState<SubquotationItem[]>([
-    {
-      id: "1",
-      proceso: "",
-      medida: 0,
-      unidad: "UND",
-      valorUnitario: 0,
-      valorTotal: 0,
-    },
-  ]);
+  const getInitialSubq = () => {
+    if (rawSubq) {
+      const subq = typeof rawSubq === 'string' ? JSON.parse(rawSubq) : rawSubq;
+      const firstKey = Object.keys(subq)[0];
+      if (firstKey && subq[firstKey]) {
+        return {
+          description: subq[firstKey].description || "",
+          measure: subq[firstKey].measure || 0,
+          unit: subq[firstKey].unit || "UND",
+          unitValue: subq[firstKey].unitValue || 0,
+        };
+      }
+    }
+    return { description: "", measure: 0, unit: "UND", unitValue: 0 };
+  };
 
-  // Materiales
-  const [materialsDesc, setMaterialsDesc] = useState<string>(
-    initial?.materials?.description ?? ""
-  );
-  const [materialCost, setMaterialCost] = useState<number>(
-    initial?.materialCost ?? 0
-  );
+  const initialSubq = getInitialSubq();
 
-  // AIU / porcentajes
-  const [administrationPerc, setAdministrationPerc] = useState<number>(
-    initial?.administrationPercentage ?? 0
-  );
-  const [contingenciesPerc, setContingenciesPerc] = useState<number>(
-    initial?.contingenciesPercentage ?? 0
-  );
-  const [profitPerc, setProfitPerc] = useState<number>(
-    initial?.profitPercentage ?? 0
-  );
+  // Form State
+  const [externalName, setExternalName] = useState(initExtName);
+  const [externalIdentifier, setExternalIdentifier] = useState(initExtId);
+  const [description, setDescription] = useState(initialSubq.description);
+  const [measure, setMeasure] = useState(initialSubq.measure);
+  const [unit, setUnit] = useState(initialSubq.unit);
+  const [unitValue, setUnitValue] = useState(initialSubq.unitValue);
+  const [materialsDesc, setMaterialsDesc] = useState(initMaterials?.description || "");
 
-  // Tipo de impuesto
+  // Display State
+  const [measureDisplay, setMeasureDisplay] = useState(initialSubq.measure > 0 ? initialSubq.measure.toLocaleString("es-CO") : "");
+  const [unitValueDisplay, setUnitValueDisplay] = useState(initialSubq.unitValue > 0 ? initialSubq.unitValue.toLocaleString("es-CO") : "");
+
+  // Tax/AIU State
+  const [administrationPerc, setAdministrationPerc] = useState(initAdmin);
+  const [contingenciesPerc, setContingenciesPerc] = useState(initCont);
+  const [profitPerc, setProfitPerc] = useState(initProfit);
   const [taxType, setTaxType] = useState<"none" | "iva" | "aiu">(
-    initial?.vat ? (initial?.administrationPercentage > 0 ? "aiu" : "iva") : "none"
+    initVat ? (initAdmin > 0 ? "aiu" : "iva") : "none"
   );
 
-  // Errores de validación
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  // Calcular valor total de cada subitem cuando cambian medida o valor unitario
-  useEffect(() => {
-    setSubquotationItems((items) =>
-      items.map((item) => ({
-        ...item,
-        valorTotal: item.medida * item.valorUnitario,
-      }))
-    );
-  }, []);
-
-  const handleSubitemChange = (
-    id: string,
-    field: keyof SubquotationItem,
-    value: string | number
+  const handleCostInput = (
+    value: string,
+    setDisplay: (v: string) => void,
+    setNumeric: (v: number) => void
   ) => {
-    setSubquotationItems((items) =>
-      items.map((item) => {
-        if (item.id === id) {
-          const updatedItem = { ...item, [field]: value };
-          // Recalcular valor total si cambia medida o valor unitario
-          if (field === "medida" || field === "valorUnitario") {
-            updatedItem.valorTotal =
-              updatedItem.medida * updatedItem.valorUnitario;
-          }
-          return updatedItem;
-        }
-        return item;
-      })
-    );
+    const digitsOnly = value.replace(/[^0-9]/g, "");
+    const numeric = Number(digitsOnly) || 0;
+    setNumeric(numeric);
+    const formatted = numeric > 0 ? numeric.toLocaleString("es-CO") : "";
+    setDisplay(formatted);
   };
 
-  const addSubitem = () => {
-    const newItem: SubquotationItem = {
-      id: Date.now().toString(),
-      proceso: "",
-      medida: 0,
-      unidad: "UND",
-      valorUnitario: 0,
-      valorTotal: 0,
-    };
-    setSubquotationItems([...subquotationItems, newItem]);
-  };
+  // Calculations
+  const itemTotal = useMemo(() => measure * unitValue, [measure, unitValue]);
+  const subtotal = itemTotal; // Contractor no longer sets materialCost
 
-  const removeSubitem = (id: string) => {
-    if (subquotationItems.length > 1) {
-      setSubquotationItems((items) => items.filter((item) => item.id !== id));
-    }
-  };
-
-  const handleTaxTypeChange = (type: "iva" | "aiu") => {
-    setTaxType((prev) => {
-      // Si ya está seleccionado el mismo tipo, desmarcar (none)
-      if (prev === type) return "none";
-      // Si está en "none" o en el otro tipo, cambiar al tipo seleccionado
-      return type;
-    });
-  };
-
-  const handlePercentageChange = (
-    field: "administracion" | "imprevistos" | "utilidad",
-    value: number
-  ) => {
-    const clampedValue = Math.max(0, Math.min(100, value));
-    if (field === "administracion") {
-      setAdministrationPerc(clampedValue);
-    } else if (field === "imprevistos") {
-      setContingenciesPerc(clampedValue);
-    } else if (field === "utilidad") {
-      setProfitPerc(clampedValue);
-    }
-  };
-
-  // Cálculos (siguiendo la lógica del formulario original)
-  const subtotalItems = useMemo(
-    () => subquotationItems.reduce((sum, item) => sum + item.valorTotal, 0),
-    [subquotationItems]
-  );
-
-  const subtotal = useMemo(
-    () => subtotalItems + (materialCost ?? 0),
-    [subtotalItems, materialCost]
-  );
-
-  const adminAmount = useMemo(
-    () => (taxType === "aiu" ? subtotal * (administrationPerc / 100) : 0),
-    [taxType, subtotal, administrationPerc]
-  );
-
-  const contingenciesAmount = useMemo(
-    () => (taxType === "aiu" ? subtotal * (contingenciesPerc / 100) : 0),
-    [taxType, subtotal, contingenciesPerc]
-  );
-
-  const profitAmount = useMemo(
-    () => (taxType === "aiu" ? subtotal * (profitPerc / 100) : 0),
-    [taxType, subtotal, profitPerc]
-  );
-
-  const ivaOnProfit = useMemo(
-    () => (taxType === "aiu" ? profitAmount * (ivaPercent / 100) : 0),
-    [taxType, profitAmount, ivaPercent]
-  );
-
-  const totalAIU = useMemo(
-    () => adminAmount + contingenciesAmount + profitAmount + ivaOnProfit,
-    [adminAmount, contingenciesAmount, profitAmount, ivaOnProfit]
-  );
-
+  const adminAmount = useMemo(() => (taxType === "aiu" ? subtotal * (administrationPerc / 100) : 0), [taxType, subtotal, administrationPerc]);
+  const contingenciesAmount = useMemo(() => (taxType === "aiu" ? subtotal * (contingenciesPerc / 100) : 0), [taxType, subtotal, contingenciesPerc]);
+  const profitAmount = useMemo(() => (taxType === "aiu" ? subtotal * (profitPerc / 100) : 0), [taxType, subtotal, profitPerc]);
+  const ivaOnProfit = useMemo(() => (taxType === "aiu" ? profitAmount * (ivaPercent / 100) : 0), [taxType, profitAmount, ivaPercent]);
+  
   const taxAmount = useMemo(() => {
-    if (taxType === "iva") {
-      return subtotal * (ivaPercent / 100);
-    } else if (taxType === "aiu") {
-      return totalAIU;
-    }
+    if (taxType === "iva") return subtotal * (ivaPercent / 100);
+    if (taxType === "aiu") return adminAmount + contingenciesAmount + profitAmount + ivaOnProfit;
     return 0;
-  }, [taxType, subtotal, totalAIU, ivaPercent]);
+  }, [taxType, subtotal, ivaPercent, adminAmount, contingenciesAmount, profitAmount, ivaOnProfit]);
 
-  const totalContractor = useMemo(
-    () => subtotal + taxAmount,
-    [subtotal, taxAmount]
-  );
+  const totalContractor = subtotal + taxAmount;
 
-  // Limpiar errores cuando cambian los valores
-  useEffect(() => {
-    setErrors({});
-  }, [
-    subquotationItems,
-    materialCost,
-    administrationPerc,
-    contingenciesPerc,
-    profitPerc,
-    taxType,
-  ]);
-
-  const validateForm = () => {
-    const newErrors: Record<string, string> = {};
-
-    // Validar campos de contratista externo
-    if (isExternal) {
-      if (!externalName.trim()) {
-        newErrors.externalName = "El nombre es requerido";
-      }
-      if (!externalIdentifier.trim()) {
-        newErrors.externalIdentifier = "La identificación es requerida";
-      }
-    }
-
-    // Validar que hay al menos un subitem con datos
-    const hasValidSubitem = subquotationItems.some(
-      (item) => item.proceso.trim() !== "" && item.medida > 0
-    );
-    if (!hasValidSubitem) {
-      newErrors.items = "Debes agregar al menos una actividad válida";
-    }
-
-    // Validar subitems individuales
-    subquotationItems.forEach((item, index) => {
-      if (item.proceso.trim() !== "") {
-        if (item.medida <= 0) {
-          newErrors[`item_${index}_measure`] = "La cantidad debe ser mayor a 0";
-        }
-        if (item.valorUnitario < 0) {
-          newErrors[`item_${index}_unitValue`] =
-            "El valor unitario no puede ser negativo";
-        }
-      }
-    });
-
-    // Validar materiales
-    if (materialCost < 0) {
-      newErrors.materialCost = "El costo de materiales no puede ser negativo";
-    }
-
-    // Validar porcentajes AIU
-    if (taxType === "aiu") {
-      if (administrationPerc < 0 || administrationPerc > 100) {
-        newErrors.administrationPerc = "Debe estar entre 0 y 100";
-      }
-      if (contingenciesPerc < 0 || contingenciesPerc > 100) {
-        newErrors.contingenciesPerc = "Debe estar entre 0 y 100";
-      }
-      if (profitPerc < 0 || profitPerc > 100) {
-        newErrors.profitPerc = "Debe estar entre 0 y 100";
-      }
-    }
-
-    // Validaciones generales
-    if (!item?.id) {
-      newErrors.item = "Item inválido";
-    }
-    if (!isExternal && !currentUser?.id) {
-      newErrors.user = "No se detectó usuario";
-    }
-    if (subtotal < 0) {
-      newErrors.subtotal = "Subtotal inválido";
-    }
-
-    return newErrors;
+  const formatDate = (date: string | Date | undefined) => {
+    if (!date) return "No disponible";
+    return new Date(date).toLocaleDateString("es-ES", { day: "2-digit", month: "long", year: "numeric" });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setErrors({});
-
-    const validationErrors = validateForm();
-    if (Object.keys(validationErrors).length > 0) {
-      setErrors(validationErrors);
-      toast.error("Por favor corrige los errores en el formulario");
+    const newErrors: Record<string, string> = {};
+    if (isExternal) {
+      if (!externalName.trim()) newErrors.externalName = "Requerido";
+      if (!externalIdentifier.trim()) newErrors.externalIdentifier = "Requerido";
+    }
+    if (!description.trim()) newErrors.description = "Requerido";
+    if (measure <= 0) newErrors.measure = "Debe ser mayor a 0";
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
       return;
     }
 
-    // Preparar subquotations como objeto indexado (no array)
-    const subquotationsArray = subquotationItems
-      .filter((item) => item.proceso.trim() !== "")
-      .map((item, index) => ({
-        id: index + 1,
-        description: item.proceso,
-        measure: item.medida,
-        unit: item.unidad,
-        unitValue: item.valorUnitario,
-        totalValue: item.valorTotal,
-      }));
-
-    // Convertir array a objeto con índices como keys
-    const subquotationsObject = subquotationsArray.reduce((acc, item, index) => {
-      acc[`item_${index + 1}`] = item;
-      return acc;
-    }, {} as Record<string, any>);
-
-
     const payload = {
       itemId: Number(item.id),
-      subquotations: subquotationsObject,
+      subquotations: {
+        item_1: { id: 1, description, measure, unit, unitValue, totalValue: itemTotal }
+      },
       totalContractor: Number(totalContractor.toFixed(2)),
       materials: materialsDesc ? { description: materialsDesc } : null,
-      materialCost: materialCost > 0 ? Number(materialCost.toFixed(2)) : null,
+      materialCost: null, // Removed as requested
       subtotal: Number(subtotal.toFixed(2)),
       managementPercentage: null,
-      administrationPercentage: administrationPerc > 0 ? Number(administrationPerc.toFixed(2)) : null,
-      contingenciesPercentage: contingenciesPerc > 0 ? Number(contingenciesPerc.toFixed(2)) : null,
-      profitPercentage: profitPerc > 0 ? Number(profitPerc.toFixed(2)) : null,
+      administrationPercentage: taxType === "aiu" ? administrationPerc : null,
+      contingenciesPercentage: taxType === "aiu" ? contingenciesPerc : null,
+      profitPercentage: taxType === "aiu" ? profitPerc : null,
       agValue: null,
-      vat: taxType === "iva" || taxType === "aiu",
-      assignedContractorId: isExternal ? null : (currentUser?.id ?? null),
-      // Campos para contratistas externos
+      vat: taxType !== "none",
+      assignedContractorId: isExternal ? null : (currentUser?.id || null),
       ...(isExternal && {
         externalContractorName: externalName.trim(),
         externalContractorIdentifier: externalIdentifier.trim(),
       }),
     };
 
-
     try {
       let result;
       if (isEditing && initial?.id) {
-        result = await updateQuoteItem(initial.id, payload);
-        toast.success("Cotización actualizada correctamente");
+        result = await updateQuoteItem(initial.id, payload as any);
+        toast.success("Cotización actualizada");
       } else {
-        result = await createQuoteItem(payload);
-        toast.success("Cotización guardada correctamente");
+        result = await createQuoteItem(payload as any);
+        toast.success("Cotización enviada");
       }
       onSaved?.(result);
     } catch (err: any) {
-      console.error(err);
-      toast.error(err?.message ?? "Error guardando la cotización");
+      toast.error(err?.message || "Error al procesar");
     }
   };
 
   return (
-    <form
-      onSubmit={handleSubmit}
-      onKeyDown={(e) => {
-        if (e.key === "Enter") {
-          e.preventDefault();
-        }
-      }}
-      className="space-y-6 mb-20 md:mb-0"
-    >
-      {/* Información General - Solo lectura (si hay caseData) */}
-      {caseData && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Información General del Caso</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-500">
-                  Número del Caso <span className="text-red-500">*</span>
-                </label>
-                <Input
-                  value={caseData.workOrderNumber}
-                  className="bg-gray-100"
-                  readOnly
-                />
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-500">
-                  Ubicación <span className="text-red-500">*</span>
-                </label>
-                <Input
-                  value={caseData.location}
-                  className="bg-gray-100"
-                  readOnly
-                />
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-500">
-                Descripción Universidad <span className="text-red-500">*</span>
-              </label>
-              <Textarea
-                value={caseData.quotationDescription}
-                rows={4}
-                className="bg-gray-100"
-                readOnly
-              />
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-500">
-                Descripción de Actividades <span className="text-red-500">*</span>
-              </label>
-              <Textarea
-                value={caseData.caseDescription}
-                rows={4}
-                className="bg-gray-100"
-                readOnly
-              />
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Información del Contratista Externo */}
-      {isExternal && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Información del Contratista</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-500">
-                  Nombre Completo <span className="text-red-500">*</span>
-                </label>
-                <Input
-                  value={externalName}
-                  onChange={(e) => setExternalName(e.target.value)}
-                  placeholder="Ingresa tu nombre completo"
-                  disabled={submitting}
-                  aria-invalid={!!errors.externalName}
-                />
-                {errors.externalName && (
-                  <p className="text-sm text-destructive">{errors.externalName}</p>
-                )}
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-500">
-                  Identificación <span className="text-red-500">*</span>
-                </label>
-                <Input
-                  value={externalIdentifier}
-                  onChange={(e) => setExternalIdentifier(e.target.value)}
-                  placeholder="Cédula, NIT, etc."
-                  disabled={submitting}
-                  aria-invalid={!!errors.externalIdentifier}
-                />
-                {errors.externalIdentifier && (
-                  <p className="text-sm text-destructive">
-                    {errors.externalIdentifier}
-                  </p>
-                )}
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Cotización - Items dinámicos */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Cotización</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          {subquotationItems.map((subitem, index) => (
-            <div key={subitem.id} className="border rounded-lg p-4 space-y-4">
-              <div className="flex justify-between items-center">
-                <h4 className="font-medium">Ítem {index + 1}</h4>
-                {subquotationItems.length > 1 && (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => removeSubitem(subitem.id)}
-                    className="text-red-600 hover:text-red-700"
-                    disabled={submitting}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                )}
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-500">
-                  Actividad <span className="text-red-500">*</span>
-                </label>
-                <Textarea
-                  value={subitem.proceso}
-                  onChange={(e) =>
-                    handleSubitemChange(subitem.id, "proceso", e.target.value)
-                  }
-                  rows={3}
-                  disabled={submitting}
-                  aria-invalid={!!errors[`item_${index}_proceso`]}
-                />
-                {errors[`item_${index}_proceso`] && (
-                  <p className="text-sm text-destructive">
-                    {errors[`item_${index}_proceso`]}
-                  </p>
-                )}
-              </div>
-
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-500">
-                    Cantidad
-                  </label>
-                  <Input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={subitem.medida || ""}
-                    onChange={(e) =>
-                      handleSubitemChange(
-                        subitem.id,
-                        "medida",
-                        Number.parseFloat(e.target.value) || 0
-                      )
-                    }
-                    disabled={submitting}
-                    aria-invalid={!!errors[`item_${index}_measure`]}
-                  />
-                  {errors[`item_${index}_measure`] && (
-                    <p className="text-sm text-destructive">
-                      {errors[`item_${index}_measure`]}
-                    </p>
-                  )}
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-500">
-                    Unidad
-                  </label>
-                  <Select
-                    value={subitem.unidad}
-                    onValueChange={(value) =>
-                      handleSubitemChange(subitem.id, "unidad", value)
-                    }
-                    disabled={submitting}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {unitOptions.map((option) => (
-                        <SelectItem key={option.value} value={option.value}>
-                          {option.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-500">
-                    Valor Unitario
-                  </label>
-                  <Input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={subitem.valorUnitario || ""}
-                    onChange={(e) =>
-                      handleSubitemChange(
-                        subitem.id,
-                        "valorUnitario",
-                        Number.parseFloat(e.target.value) || 0
-                      )
-                    }
-                    disabled={submitting}
-                    aria-invalid={!!errors[`item_${index}_unitValue`]}
-                  />
-                  {errors[`item_${index}_unitValue`] && (
-                    <p className="text-sm text-destructive">
-                      {errors[`item_${index}_unitValue`]}
-                    </p>
-                  )}
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-500">
-                    Valor Total
-                  </label>
-                  <Input
-                    type="text"
-                    value={subitem.valorTotal.toLocaleString("es-CO", {
-                      minimumFractionDigits: 2,
-                    })}
-                    className="bg-gray-100"
-                    readOnly
-                  />
-                </div>
-              </div>
-            </div>
-          ))}
-          {errors.items && (
-            <p className="text-sm text-destructive">{errors.items}</p>
-          )}
-
-          <Button
-            type="button"
-            variant="outline"
-            onClick={addSubitem}
-            className="w-full bg-[#FF5C00] hover:bg-[#E65200] text-white hover:text-white"
-            disabled={submitting}
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            Agregar Ítem
-          </Button>
-        </CardContent>
-      </Card>
-
-      {/* Impuestos */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Impuestos</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex flex-col gap-4">
-            <p className="text-sm text-muted-foreground">
-              Selecciona el tipo de impuesto a aplicar (solo puedes elegir uno):
-            </p>
-            <div className="flex gap-6">
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="iva"
-                  checked={taxType === "iva"}
-                  onCheckedChange={() => handleTaxTypeChange("iva")}
-                  disabled={submitting}
-                />
-                <label
-                  htmlFor="iva"
-                  className={`text-sm font-medium cursor-pointer ${taxType === "aiu" ? "text-muted-foreground" : ""
-                    }`}
-                >
-                  Incluir IVA ({ivaPercent}%)
-                </label>
-              </div>
-
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="aiu"
-                  checked={taxType === "aiu"}
-                  onCheckedChange={() => handleTaxTypeChange("aiu")}
-                  disabled={submitting}
-                />
-                <label
-                  htmlFor="aiu"
-                  className={`text-sm font-medium cursor-pointer ${taxType === "iva" ? "text-muted-foreground" : ""
-                    }`}
-                >
-                  Incluir AIU
-                </label>
-              </div>
-            </div>
+    <form onSubmit={handleSubmit} className="space-y-6 max-w-3xl mx-auto">
+      
+      {/* ── Context ── */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 bg-slate-50 dark:bg-slate-900/50 p-4 rounded-lg border border-slate-200">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="bg-slate-200 dark:bg-slate-800 p-2 rounded text-slate-600">
+            <Building2 className="w-4 h-4" />
           </div>
+          <div className="min-w-0">
+            <h3 className="text-sm font-bold text-slate-900 dark:text-white truncate">{(item as any).work?.code || "Obra"}</h3>
+            <p className="text-[11px] text-slate-500 truncate max-w-[200px]">{item.description}</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider bg-white dark:bg-slate-950 px-3 py-1.5 rounded border border-slate-200 shadow-sm">
+          <Calendar className="w-3 h-3 text-slate-400" />
+          <span className="text-slate-400">Asignado:</span>
+          <span className="text-slate-700 dark:text-slate-300">{formatDate(item.createdAt)}</span>
+        </div>
+      </div>
 
-          {taxType === "aiu" && (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-500">
-                  Administración (%)
-                </label>
-                <Input
-                  type="number"
-                  min="0"
-                  max="100"
-                  step="0.01"
-                  value={administrationPerc}
-                  onChange={(e) =>
-                    handlePercentageChange(
-                      "administracion",
-                      Number.parseFloat(e.target.value) || 0
-                    )
-                  }
-                  disabled={submitting}
-                  aria-invalid={!!errors.administrationPerc}
-                />
-                {errors.administrationPerc && (
-                  <p className="text-sm text-destructive">
-                    {errors.administrationPerc}
-                  </p>
-                )}
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-500">
-                  Imprevistos (%)
-                </label>
-                <Input
-                  type="number"
-                  min="0"
-                  max="100"
-                  step="0.01"
-                  value={contingenciesPerc}
-                  onChange={(e) =>
-                    handlePercentageChange(
-                      "imprevistos",
-                      Number.parseFloat(e.target.value) || 0
-                    )
-                  }
-                  disabled={submitting}
-                  aria-invalid={!!errors.contingenciesPerc}
-                />
-                {errors.contingenciesPerc && (
-                  <p className="text-sm text-destructive">
-                    {errors.contingenciesPerc}
-                  </p>
-                )}
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-500">
-                  Utilidad (%)
-                </label>
-                <Input
-                  type="number"
-                  min="0"
-                  max="100"
-                  step="0.01"
-                  value={profitPerc}
-                  onChange={(e) =>
-                    handlePercentageChange(
-                      "utilidad",
-                      Number.parseFloat(e.target.value) || 0
-                    )
-                  }
-                  disabled={submitting}
-                  aria-invalid={!!errors.profitPerc}
-                />
-                {errors.profitPerc && (
-                  <p className="text-sm text-destructive">
-                    {errors.profitPerc}
-                  </p>
-                )}
-              </div>
+      {/* ── Contratista Externo ── */}
+      {isExternal && (
+        <Card className="shadow-none border-slate-200">
+          <CardHeader className="bg-slate-50/50 py-3 border-b">
+            <CardTitle className="text-xs font-bold uppercase tracking-widest text-slate-600 flex items-center gap-2">
+              <Info className="w-3.5 h-3.5" /> Identificación de Contratista
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-1">
+              <Label className="text-[10px] font-bold text-slate-400 uppercase">Nombre Completo</Label>
+              <Input
+                value={externalName}
+                onChange={(e) => setExternalName(e.target.value)}
+                className={`h-9 text-sm ${errors.externalName ? "border-red-500" : "border-slate-200"}`}
+              />
             </div>
-          )}
-        </CardContent>
-      </Card>
+            <div className="space-y-1">
+              <Label className="text-[10px] font-bold text-slate-400 uppercase">Documento / Identificación</Label>
+              <Input
+                value={externalIdentifier}
+                onChange={(e) => setExternalIdentifier(e.target.value)}
+                className={`h-9 text-sm ${errors.externalIdentifier ? "border-red-500" : "border-slate-200"}`}
+              />
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
-      {/* Materiales y costos */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Materiales y/o Observaciones</CardTitle>
+      {/* ── Detalles del Ítem ── */}
+      <Card className="shadow-none border-slate-200 overflow-hidden">
+        <CardHeader className="bg-slate-800 py-3 border-b">
+          <CardTitle className="text-white text-xs font-bold uppercase tracking-widest flex items-center gap-2">
+            <FileText className="w-3.5 h-3.5" /> Detalles del Ítem a Cotizar
+          </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-gray-500">
-              Descripción de materiales
-            </label>
+        <CardContent className="p-5 space-y-4">
+          <div className="space-y-1.5">
+            <Label className="text-[10px] font-bold text-slate-400 uppercase">Descripción del Trabajo <span className="text-red-500">*</span></Label>
             <Textarea
-              value={materialsDesc}
-              onChange={(e) => setMaterialsDesc(e.target.value)}
-              placeholder="Descripción de los materiales y/o observaciones requeridos en la cotización"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Especifique el alcance de su trabajo..."
               rows={3}
-              disabled={submitting}
+              className={`text-sm ${errors.description ? "border-red-500" : "border-slate-200"}`}
             />
           </div>
-        </CardContent>
-      </Card>
 
-      {/* Resumen */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Resumen de Cotización</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            {subquotationItems.map((subitem, index) => (
-              <div key={subitem.id} className="flex justify-between text-sm">
-                <span>
-                  Proceso {index + 1}:{" "}
-                  {subitem.proceso || "Sin descripción"}
-                </span>
-                <span>
-                  $
-                  {subitem.valorTotal.toLocaleString("es-CO", {
-                    minimumFractionDigits: 2,
-                  })}
-                </span>
-              </div>
-            ))}
-          </div>
-
-          <hr />
-
-          <div className="flex justify-between font-medium">
-            <span>Subtotal:</span>
-            <span>
-              $
-              {subtotal.toLocaleString("es-CO", {
-                minimumFractionDigits: 2,
-              })}
-            </span>
-          </div>
-
-          {taxType === "iva" && (
-            <div className="flex justify-between text-sm">
-              <span>IVA ({ivaPercent}%):</span>
-              <span>
-                $
-                {taxAmount.toLocaleString("es-CO", {
-                  minimumFractionDigits: 2,
-                })}
-              </span>
+          <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+            <div className="space-y-1.5 sm:col-span-1">
+              <Label className="text-[10px] font-bold text-slate-400 uppercase">Cantidad</Label>
+              <Input
+                value={measureDisplay}
+                onChange={(e) => handleCostInput(e.target.value, setMeasureDisplay, setMeasure)}
+                className={`h-9 text-sm ${errors.measure ? "border-red-500" : "border-slate-200"}`}
+              />
             </div>
-          )}
-
-          {taxType === "aiu" && (
-            <>
-              <div className="flex justify-between text-sm">
-                <span>
-                  Administración ({administrationPerc.toFixed(2)}%):
-                </span>
-                <span>
-                  $
-                  {adminAmount.toLocaleString("es-CO", {
-                    minimumFractionDigits: 2,
-                  })}
-                </span>
+            <div className="space-y-1.5 sm:col-span-1">
+              <Label className="text-[10px] font-bold text-slate-400 uppercase">Unidad</Label>
+              <Select value={unit} onValueChange={setUnit}>
+                <SelectTrigger className="h-9 text-sm border-slate-200">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {unitOptions.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value} className="text-sm">{opt.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5 sm:col-span-1">
+              <Label className="text-[10px] font-bold text-slate-400 uppercase">Valor Unitario</Label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs">$</span>
+                <Input
+                  value={unitValueDisplay}
+                  onChange={(e) => handleCostInput(e.target.value, setUnitValueDisplay, setUnitValue)}
+                  className="h-9 text-sm pl-7 border-slate-200"
+                />
               </div>
-              <div className="flex justify-between text-sm">
-                <span>Imprevistos ({contingenciesPerc.toFixed(2)}%):</span>
-                <span>
-                  $
-                  {contingenciesAmount.toLocaleString("es-CO", {
-                    minimumFractionDigits: 2,
-                  })}
-                </span>
+            </div>
+            <div className="space-y-1.5 sm:col-span-3 lg:col-span-1">
+              <Label className="text-[10px] font-bold text-slate-400 uppercase">Total Actividad</Label>
+              <div className="h-9 px-3 flex items-center rounded-md border border-slate-100 bg-slate-50 text-sm font-bold text-slate-600 tabular-nums">
+                ${itemTotal.toLocaleString("es-CO")}
               </div>
-              <div className="flex justify-between text-sm">
-                <span>Utilidad ({profitPerc.toFixed(2)}%):</span>
-                <span>
-                  $
-                  {profitAmount.toLocaleString("es-CO", {
-                    minimumFractionDigits: 2,
-                  })}
-                </span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span>IVA sobre Utilidad ({ivaPercent}%):</span>
-                <span>
-                  $
-                  {ivaOnProfit.toLocaleString("es-CO", {
-                    minimumFractionDigits: 2,
-                  })}
-                </span>
-              </div>
-            </>
-          )}
-
-          <hr />
-
-          <div className="flex justify-between text-lg font-bold">
-            <span>Total:</span>
-            <span>
-              $
-              {totalContractor.toLocaleString("es-CO", {
-                minimumFractionDigits: 2,
-              })}
-            </span>
+            </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* Botones de acción */}
-      <div className="flex justify-end gap-4 pt-4">
+      {/* ── Observaciones de Materiales ── */}
+      <div className="space-y-2 px-1">
+        <Label className="text-[10px] font-bold text-slate-400 uppercase">Notas sobre Materiales / Observaciones (Opcional)</Label>
+        <Textarea
+          value={materialsDesc}
+          onChange={(e) => setMaterialsDesc(e.target.value)}
+          placeholder="Si requiere materiales específicos, lístelos aquí..."
+          rows={2}
+          className="text-sm border-slate-200 bg-slate-50/30"
+        />
+      </div>
+
+      {/* ── Impuestos y AIU ── */}
+      <div className="bg-white border border-slate-200 rounded-lg p-4 space-y-4">
+        <div className="flex flex-wrap gap-5 items-center">
+          <div className="flex items-center space-x-2">
+            <Checkbox id="iva" checked={taxType === "iva"} onCheckedChange={(c) => setTaxType(c ? "iva" : "none")} />
+            <Label htmlFor="iva" className="text-xs font-semibold text-slate-600 cursor-pointer">IVA ({ivaPercent}%)</Label>
+          </div>
+          <div className="flex items-center space-x-2">
+            <Checkbox id="aiu" checked={taxType === "aiu"} onCheckedChange={(c) => setTaxType(c ? "aiu" : "none")} />
+            <Label htmlFor="aiu" className="text-xs font-semibold text-slate-600 cursor-pointer">Esquema AIU</Label>
+          </div>
+        </div>
+
+        {taxType === "aiu" && (
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-3 border-t">
+            <div className="space-y-1">
+              <Label className="text-[9px] font-bold text-slate-400 uppercase">Admin (%)</Label>
+              <Input
+                type="number"
+                value={administrationPerc || ""}
+                onChange={(e) => setAdministrationPerc(Math.min(100, Math.max(0, parseFloat(e.target.value) || 0)))}
+                className="h-8 text-xs border-slate-200"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-[9px] font-bold text-slate-400 uppercase">Imprevistos (%)</Label>
+              <Input
+                type="number"
+                value={contingenciesPerc || ""}
+                onChange={(e) => setContingenciesPerc(Math.min(100, Math.max(0, parseFloat(e.target.value) || 0)))}
+                className="h-8 text-xs border-slate-200"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-[9px] font-bold text-slate-400 uppercase">Utilidad (%)</Label>
+              <Input
+                type="number"
+                value={profitPerc || ""}
+                onChange={(e) => setProfitPerc(Math.min(100, Math.max(0, parseFloat(e.target.value) || 0)))}
+                className="h-8 text-xs border-slate-200"
+              />
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* ── Resumen ── */}
+      <Card className="shadow-none border-blue-100 bg-blue-50/30">
+        <CardContent className="p-5">
+           <div className="space-y-2">
+              <div className="flex justify-between text-xs font-semibold text-slate-500">
+                <span>Subtotal de ítems:</span>
+                <span className="tabular-nums">${itemTotal.toLocaleString("es-CO")}</span>
+              </div>
+              
+              {taxType !== "none" && (
+                <div className="flex justify-between text-xs font-semibold text-blue-600">
+                  <span>{taxType === "iva" ? "IVA:" : "AIU + IVA:"}</span>
+                  <span className="tabular-nums">+${taxAmount.toLocaleString("es-CO", { minimumFractionDigits: 0 })}</span>
+                </div>
+              )}
+              
+              <Separator className="my-1 bg-blue-100" />
+              
+              <div className="flex justify-between items-center bg-blue-100/50 p-3 rounded-lg">
+                <span className="text-xs font-extrabold text-blue-700 uppercase tracking-widest">Total Cotización:</span>
+                <span className="text-xl font-black text-blue-900 tabular-nums">
+                  ${totalContractor.toLocaleString("es-CO", { minimumFractionDigits: 0 })}
+                </span>
+              </div>
+           </div>
+        </CardContent>
+      </Card>
+
+      <div className="flex justify-end pt-2 pb-10">
         <Button
           type="submit"
-          className="w-full bg-purple-500 hover:bg-purple-600 text-white flex items-center justify-center gap-2"
           disabled={submitting}
+          className="w-full sm:w-auto min-w-[180px] h-11 bg-slate-900 hover:bg-black text-white text-sm font-bold shadow-lg transition-transform active:scale-95"
         >
-          {submitting && <Loader2 className="animate-spin h-4 w-4" />}
-          {isEditing ? "Actualizar Cotización" : "Guardar Cotización"}
+          {submitting ? (
+            <Loader2 className="animate-spin w-4 h-4 mr-2" />
+          ) : (
+            <Save className="w-4 h-4 mr-2" />
+          )}
+          {isEditing ? "Actualizar Cotización" : "Enviar Cotización"}
         </Button>
       </div>
+
     </form>
   );
 }

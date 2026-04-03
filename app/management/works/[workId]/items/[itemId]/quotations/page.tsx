@@ -71,11 +71,15 @@ export default function ItemQuotationsPage({ params }: ItemQuotationsPageProps) 
   };
 
   const getContractorName = (quote: any) => {
+    console.log(quote);
+    if (quote.ConstruimosAG) {
+      return "Construimos AG";
+    }
     if (quote.externalContractorName) {
       return `${quote.externalContractorName} (Externo)`;
     }
     if (quote.assignedContractor) {
-      return `${quote.assignedContractor.firstName || ""} ${quote.assignedContractor.lastName || ""}`.trim();
+      return `${quote.assignedContractor.name} (Contratista)`;
     }
     return "Contratista no especificado";
   };
@@ -204,7 +208,7 @@ export default function ItemQuotationsPage({ params }: ItemQuotationsPageProps) 
 
               <div className="bg-yellow-50 dark:bg-yellow-900/20 p-4 rounded-lg">
                 <p className="text-sm text-yellow-800 dark:text-yellow-200">
-                  <strong>Nota:</strong> Este ítem ya ha sido incluido en la cotizacíon de la obra. 
+                  <strong>Nota:</strong> Este ítem ya ha sido incluido en la cotizacíon de la obra.
                   Si deseas modificar la cotización, puedes editarla desde la página de resumen.
                 </p>
               </div>
@@ -269,59 +273,58 @@ export default function ItemQuotationsPage({ params }: ItemQuotationsPageProps) 
           {quoteItems.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {quoteItems.map((quote: any) => (
-                <Card key={quote.id} className="hover:shadow-lg transition-shadow">
-                  <CardHeader className="pb-3">
-                    <div className="flex justify-between items-start">
-                      <CardTitle className="text-base">
-                        Cotización #{quote.id}
-                      </CardTitle>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="space-y-3">
-                    {/* Contratista */}
-                    <div className="flex items-start gap-2">
-                      <User className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
-                      <div className="min-w-0">
-                        <p className="text-xs text-muted-foreground">Contratista</p>
-                        <p className="text-sm font-medium truncate">
+                <Card
+                  key={quote.id}
+                  className="hover:shadow-xl transition-all duration-200 border-2 hover:border-purple-300 overflow-hidden"
+                >
+                  {/* Header colorido */}
+                  <div className={`px-5 pt-4 pb-3 ${quote.ConstruimosAG ? "bg-gradient-to-r from-purple-600 to-purple-700" : "bg-gradient-to-r from-orange-700 to-orange-800"}`}>
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <User className="h-4 w-4 text-white/70 shrink-0" />
+                        <p className="text-white font-semibold text-sm truncate">
                           {getContractorName(quote)}
                         </p>
-                        {quote.externalContractorIdentifier && (
-                          <p className="text-xs text-muted-foreground">
-                            ID: {quote.externalContractorIdentifier}
-                          </p>
-                        )}
                       </div>
+                      {quote.ConstruimosAG && (
+                        <Badge className="bg-white/20 text-white border-white/30 text-[10px] shrink-0">
+                          AG
+                        </Badge>
+                      )}
                     </div>
+                    {quote.externalContractorIdentifier && (
+                      <p className="text-xs text-white/60 mt-1 ml-6">
+                        ID: {quote.externalContractorIdentifier}
+                      </p>
+                    )}
+                  </div>
 
+                  <CardContent className="p-4 space-y-3">
                     {/* Fecha */}
-                    <div className="flex items-start gap-2">
-                      <Calendar className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
-                      <div className="min-w-0">
-                        <p className="text-xs text-muted-foreground">Fecha</p>
-                        <p className="text-sm">{formatDate(quote.createdAt)}</p>
-                      </div>
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <Calendar className="h-3.5 w-3.5 shrink-0" />
+                      <span>{formatDate(quote.createdAt)}</span>
                     </div>
 
-                    {/* Totales */}
-                    <div className="space-y-2 pt-3 border-t">
+                    {/* Precios destacados */}
+                    <div className="bg-muted/40 rounded-lg p-3 space-y-2">
                       <div className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">Subtotal:</span>
-                        <span className="font-medium">
+                        <span className="text-muted-foreground">Subtotal contratista:</span>
+                        <span className="font-semibold tabular-nums">
                           ${formatCurrency(Number(quote.subtotal))}
                         </span>
                       </div>
-                      {quote.materialCost > 0 && (
+                      {Number(quote.materialCost) > 0 && (
                         <div className="flex justify-between text-sm">
-                          <span className="text-muted-foreground">Materiales:</span>
-                          <span className="font-medium">
+                          <span className="text-muted-foreground">+ Materiales:</span>
+                          <span className="font-semibold text-blue-600 tabular-nums">
                             ${formatCurrency(Number(quote.materialCost))}
                           </span>
                         </div>
                       )}
-                      <div className="flex justify-between text-sm font-bold pt-2 border-t">
-                        <span>Total:</span>
-                        <span className="text-purple-600">
+                      <div className="flex justify-between items-center pt-2 border-t border-border/60">
+                        <span className="text-sm font-bold">Total:</span>
+                        <span className="text-lg font-bold text-purple-600 tabular-nums">
                           ${formatCurrency(Number(quote.totalContractor))}
                         </span>
                       </div>
@@ -330,9 +333,9 @@ export default function ItemQuotationsPage({ params }: ItemQuotationsPageProps) 
                     {/* Botón seleccionar */}
                     <Button
                       onClick={() => handleSelectQuotation(quote.id)}
-                      className="w-full bg-purple-500 hover:bg-purple-600"
+                      className={`w-full ${quote.ConstruimosAG ? "bg-purple-600 hover:bg-purple-700" : "bg-orange-700 hover:bg-orange-800"} text-white`}
                     >
-                      Seleccionar
+                      Seleccionar cotización
                     </Button>
                   </CardContent>
                 </Card>

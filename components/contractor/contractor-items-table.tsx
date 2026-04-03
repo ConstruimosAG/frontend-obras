@@ -134,7 +134,7 @@ export function ContractorItemsTable({
       <div className="relative w-full sm:w-96">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
         <Input
-          placeholder="Buscar por descripción o personal..."
+          placeholder="Buscar por descripción..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           className="pl-9"
@@ -154,8 +154,6 @@ export function ContractorItemsTable({
                   <TableHead className="whitespace-nowrap">
                     Tiempo Est.
                   </TableHead>
-                  <TableHead className="whitespace-nowrap">Personal</TableHead>
-                  <TableHead className="whitespace-nowrap">Estado</TableHead>
                   <TableHead className="text-right whitespace-nowrap">
                     Acciones
                   </TableHead>
@@ -177,23 +175,6 @@ export function ContractorItemsTable({
                       </TableCell>
                       <TableCell className="whitespace-nowrap">
                         {formatEstimatedTime(item.estimatedExecutionTime)}
-                      </TableCell>
-                      <TableCell className="max-w-37.5">
-                        <p className="truncate">
-                          {getPersonnelDisplay(item.contractor ?? null)}
-                        </p>
-                      </TableCell>
-                      <TableCell>
-                        <Badge
-                          variant={item.active ? "default" : "secondary"}
-                          className={
-                            item.active
-                              ? "bg-green-500 hover:bg-green-600"
-                              : "bg-red-500 hover:bg-red-600 text-white"
-                          }
-                        >
-                          {item.active ? "Activo" : "Inactivo"}
-                        </Badge>
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center justify-end gap-1">
@@ -240,16 +221,6 @@ export function ContractorItemsTable({
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2 mb-2">
-                        <Badge
-                          variant={item.active ? "default" : "secondary"}
-                          className={
-                            item.active
-                              ? "bg-green-500 hover:bg-green-600"
-                              : "bg-red-500 hover:bg-red-600 text-white"
-                          }
-                        >
-                          {item.active ? "Activo" : "Inactivo"}
-                        </Badge>
                         {hasQuotedItem && (
                           <Badge className="bg-blue-500 hover:bg-blue-600">
                             Cotizado
@@ -277,12 +248,6 @@ export function ContractorItemsTable({
                       <Clock className="h-4 w-4 text-primary shrink-0" />
                       <span>
                         {formatEstimatedTime(item.estimatedExecutionTime)}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <User className="h-4 w-4 text-primary shrink-0" />
-                      <span className="truncate">
-                        {getPersonnelDisplay(item.contractor ?? null)}
                       </span>
                     </div>
                   </div>

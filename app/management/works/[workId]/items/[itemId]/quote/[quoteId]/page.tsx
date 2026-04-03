@@ -2,13 +2,21 @@
 
 import { use, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Loader2, Save } from "lucide-react";
+import { ArrowLeft, Loader2, Save, Building2, User, DollarSign, Percent, FileText, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useQuoteItems } from "@/hooks/items/useQuoteItems";
 import { toast } from "sonner";
 
@@ -26,6 +34,7 @@ export default function ManagementQuoteForm({ params }: ManagementQuoteFormProps
   const { getQuoteItem, updateQuoteItem, submitting } = useQuoteItems();
 
   const [quote, setQuote] = useState<any>(null);
+  console.log(quote);
   const [item, setItem] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -36,12 +45,19 @@ export default function ManagementQuoteForm({ params }: ManagementQuoteFormProps
   const [materialCost, setMaterialCost] = useState<number>(0);
   const [materialCostDisplay, setMaterialCostDisplay] = useState<string>("");
 
+  // Estados para edición de subquotation (solo ConstruimosAG)
+  const [editDescripcion, setEditDescripcion] = useState<string>("");
+  const [editUnidad, setEditUnidad] = useState<string>("");
+  const [editCantidad, setEditCantidad] = useState<number>(0);
+  const [editCantidadDisplay, setEditCantidadDisplay] = useState<string>("");
+  const [editPrecioUnitario, setEditPrecioUnitario] = useState<number>(0);
+  const [editPrecioUnitarioDisplay, setEditPrecioUnitarioDisplay] = useState<string>("");
+
   useEffect(() => {
     const loadData = async () => {
       try {
         setLoading(true);
 
-        // Cargar QuoteItem (sin verificar si está finalizado)
         const quoteData = await getQuoteItem(numericQuoteId);
         setQuote(quoteData);
 
@@ -56,6 +72,23 @@ export default function ManagementQuoteForm({ params }: ManagementQuoteFormProps
         }
         if (quoteData.managementPercentage) {
           setAgPercentage(Number(quoteData.managementPercentage));
+        }
+
+        // Si es ConstruimosAG, cargar datos de subquotation para edición
+        if (quoteData.ConstruimosAG) {
+          let subq = quoteData.subquotations;
+          if (typeof subq === "string") {
+            try { subq = JSON.parse(subq); } catch { subq = {}; }
+          }
+          const sq = subq?.item_1 || {};
+          setEditDescripcion(sq.description || "");
+          setEditUnidad(sq.unit || "");
+          const qty = Number(sq.measure || 0);
+          const uv = Number(sq.unitValue || 0);
+          setEditCantidad(qty);
+          setEditCantidadDisplay(qty > 0 ? formatNumberWithThousands(qty) : "");
+          setEditPrecioUnitario(uv);
+          setEditPrecioUnitarioDisplay(uv > 0 ? formatNumberWithThousands(uv) : "");
         }
 
         // Cargar item
@@ -82,239 +115,9 @@ export default function ManagementQuoteForm({ params }: ManagementQuoteFormProps
 
   const formatNumberWithThousands = (value: number) => {
     return value.toLocaleString("es-CO", {
-      minimumFractionDigits: 2,
+      minimumFractionDigits: 0,
       maximumFractionDigits: 2,
     });
-  };
-
-  const parseNumberFromDisplay = (value: string) => {
-    // Remover puntos y reemplazar coma por punto
-    const cleaned = value.replace(/\./g, "").replace(",", ".");
-    return Number.parseFloat(cleaned) || 0;
-  };
-
-  const handleMaterialCostChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    setMaterialCostDisplay(value);
-
-    // Parsear para guardar el valor numérico
-    const numericValue = parseNumberFromDisplay(value);
-    if (numericValue < 0) {
-      setMaterialCost(0);
-      toast.warning("El costo de materiales no puede ser negativo");
-    } else {
-      setMaterialCost(numericValue);
-    }
-  };
-
-  const handleMaterialCostBlur = () => {
-    // Al salir del campo, formatear con miles
-    setMaterialCostDisplay(formatNumberWithThousands(materialCost));
-  };
-
-  const calculateSubtotal = () => {
-    if (!quote) return 0;
-    // Subtotal es del contratista, no cambia
-    return Number(quote.subtotal);
-  };
-
-  const calculateTotalContractor = () => {
-    const subtotal = calculateSubtotal();
-    // Total Contractor = subtotal + materialCost
-    return subtotal + materialCost;
-  };
-
-  const calculateAGValue = () => {
-    const totalContractor = calculateTotalContractor();
-    // AG Value = totalContractor * (managementPercentage / 100)
-    return Math.round(totalContractor * (agPercentage / 100));
-  };
-
-  const calculateTotalContractorWithAG = () => {
-    const totalContractor = calculateTotalContractor();
-    const agValue = calculateAGValue();
-    // Total final = totalContractor + agValue
-    return totalContractor + agValue;
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    // Validaciones
-    if (agPercentage <= 0) {
-      toast.error("Debes ingresar un porcentaje AG válido");
-      return;
-    }
-
-    if (agPercentage > 100) {
-      toast.error("El porcentaje AG no puede ser mayor a 100");
-      return;
-    }
-
-    if (materialCost < 0) {
-      toast.error("El costo de materiales no puede ser negativo");
-      return;
-    }
-
-    try {
-      const baseUrl = process.env.NEXT_PUBLIC_BACKEND_URL;
-
-      // 1. Calcular valores
-      const agValue = calculateAGValue();
-      const totalContractorFinal = calculateTotalContractorWithAG();
-
-      // 2. Actualizar el QuoteItem con los valores de gerencia
-      await updateQuoteItem(numericQuoteId, {
-        managementPercentage: agPercentage,
-        agValue: agValue,
-        totalContractor: totalContractorFinal,
-        materialCost: materialCost,
-        materials: materialsDesc ? { description: materialsDesc } : null,
-      } as any);
-
-      // 3. Verificar si existe QuoteWork para esta obra
-      let quoteWork: any = null;
-
-      try {
-        const quoteWorkRes = await fetch(`${baseUrl}/api/quote-works?workId=${numericWorkId}`, {
-          credentials: "include",
-        });
-
-        if (quoteWorkRes.ok) {
-          const quoteWorkData = await quoteWorkRes.json();
-          const works = quoteWorkData?.data?.quoteWorks ?? quoteWorkData?.data ?? quoteWorkData;
-          quoteWork = Array.isArray(works) ? works[0] : works;
-        }
-      } catch (err) {
-      }
-
-      // 4. Si no existe QuoteWork, crearlo
-      if (!quoteWork) {
-        const createRes = await fetch(`${baseUrl}/api/quote-works`, {
-          method: "POST",
-          credentials: "include",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            workId: numericWorkId,
-            subtotal: 0,
-            total: 0,
-          }),
-        });
-
-        if (!createRes.ok) {
-          throw new Error("Error al crear QuoteWork");
-        }
-
-        const createdData = await createRes.json();
-        quoteWork = createdData?.data ?? createdData;
-      }
-
-      // 5. Asignar el QuoteItem al QuoteWork (si no está asignado)
-      if (!quote.quoteWorkId) {
-        await updateQuoteItem(numericQuoteId, {
-          quoteWorkId: quoteWork.id,
-        } as any);
-      }
-
-      // 6. Obtener todos los QuoteItems del QuoteWork
-      const quoteItemsRes = await fetch(`${baseUrl}/api/quote-items?quoteWorkId=${quoteWork.id}`, {
-        credentials: "include",
-      });
-
-      if (!quoteItemsRes.ok) {
-        throw new Error("Error al obtener QuoteItems del QuoteWork");
-      }
-
-      const quoteItemsData = await quoteItemsRes.json();
-      const allQuoteItems = quoteItemsData?.data?.quoteItems ?? quoteItemsData?.data ?? quoteItemsData;
-
-      // 7. Validar items activos y calcular totales
-      let subtotalQuoteWork = 0;
-      const activeQuoteItemIds: number[] = [];
-
-      for (const qi of allQuoteItems) {
-        // Verificar si el item está activo
-        const itemRes = await fetch(`${baseUrl}/api/items/${qi.itemId}`, {
-          credentials: "include",
-        });
-
-        if (itemRes.ok) {
-          const itemData = await itemRes.json();
-          const item = itemData?.data ?? itemData;
-
-          if (item.active) {
-            // Item activo, incluirlo en el cálculo
-            // subtotal + materialCost + agValue
-            const itemTotal =
-              Number(qi.subtotal || 0) +
-              Number(qi.materialCost || 0) +
-              Number(qi.agValue || 0);
-            subtotalQuoteWork += itemTotal;
-            activeQuoteItemIds.push(qi.id);
-          } else {
-            // Item inactivo, removerlo del QuoteWork
-            await updateQuoteItem(qi.id, {
-              quoteWorkId: null,
-            } as any);
-          }
-        }
-      }
-
-      // 8. Calcular total del QuoteWork según IVA/AIU
-      const quoteWorkData = await fetch(`${baseUrl}/api/quote-works/${quoteWork.id}`, {
-        credentials: "include",
-      });
-
-      let totalQuoteWork = subtotalQuoteWork;
-
-      if (quoteWorkData.ok) {
-        const qw = await quoteWorkData.json();
-        const quoteWorkInfo = qw?.data ?? qw;
-
-        if (quoteWorkInfo.vat) {
-          // IVA simple
-          totalQuoteWork = Math.round(subtotalQuoteWork * 1.19);
-        } else if (
-          quoteWorkInfo.administrationPercentage ||
-          quoteWorkInfo.contingenciesPercentage ||
-          quoteWorkInfo.profitPercentage
-        ) {
-          // AIU
-          const admin = Number(quoteWorkInfo.administrationPercentage || 0) / 100;
-          const contingencies = Number(quoteWorkInfo.contingenciesPercentage || 0) / 100;
-          const profit = Number(quoteWorkInfo.profitPercentage || 0) / 100;
-
-          const aiuValue = subtotalQuoteWork * (admin + contingencies);
-          const profitValue = (subtotalQuoteWork + aiuValue) * profit;
-          const ivaOnProfit = profitValue * 0.19;
-
-          totalQuoteWork = Math.round(
-            subtotalQuoteWork + aiuValue + profitValue + ivaOnProfit
-          );
-        }
-      }
-
-      // 9. Actualizar QuoteWork con los totales finales
-      const updateRes = await fetch(`${baseUrl}/api/quote-works/${quoteWork.id}`, {
-        method: "PUT",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          subtotal: subtotalQuoteWork,
-          total: totalQuoteWork,
-        }),
-      });
-
-      if (!updateRes.ok) {
-        throw new Error("Error al actualizar QuoteWork");
-      }
-
-      toast.success("Cotización actualizada correctamente");
-      router.push(`/management/works/${numericWorkId}`);
-    } catch (err: any) {
-      console.error(err);
-      toast.error(err.message || "Error al finalizar la cotización");
-    }
   };
 
   const formatCurrency = (value: number) => {
@@ -324,12 +127,199 @@ export default function ManagementQuoteForm({ params }: ManagementQuoteFormProps
     });
   };
 
-  const getContractorName = (quote: any) => {
-    if (quote.externalContractorName) {
-      return `${quote.externalContractorName} (Externo)`;
+  const parseNumberFromDisplay = (value: string) => {
+    const cleaned = value.replace(/\./g, "").replace(",", ".");
+    return Number.parseFloat(cleaned) || 0;
+  };
+
+  // Format with thousands separator in real time while typing
+  const handleCostInput = (
+    value: string,
+    setDisplay: (v: string) => void,
+    setNumeric: (v: number) => void
+  ) => {
+    // Strip all non-digit and non-comma chars, keep only digits
+    const digitsOnly = value.replace(/[^0-9]/g, "");
+    const numeric = Number(digitsOnly) || 0;
+    setNumeric(numeric);
+    // Format with thousands dots immediately
+    const formatted = numeric > 0
+      ? numeric.toLocaleString("es-CO", { minimumFractionDigits: 0, maximumFractionDigits: 0 })
+      : "";
+    setDisplay(formatted);
+  };
+
+  // No-op blur (already formatted in real time)
+  const handleCostBlur = (_numeric: number, _setDisplay: (v: string) => void) => {
+    // nothing needed
+  };
+
+  // --- Derived values ---
+  const isAG = quote?.ConstruimosAG === true;
+
+  // For AG quotes: subtotal is calculated from edited fields
+  const agEditedSubtotal = isAG
+    ? Math.round(editCantidad * editPrecioUnitario)
+    : 0;
+
+  const calculateSubtotal = () => {
+    if (!quote) return 0;
+    if (isAG) return agEditedSubtotal;
+    return Number(quote.subtotal);
+  };
+
+  const calculateTotalContractor = () => {
+    return calculateSubtotal() + materialCost;
+  };
+
+  const calculateAGValue = () => {
+    return Math.round(calculateTotalContractor() * (agPercentage / 100));
+  };
+
+  const calculateTotalContractorWithAG = () => {
+    return calculateTotalContractor() + calculateAGValue();
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (agPercentage <= 0) {
+      toast.error("Debes ingresar un porcentaje AG válido");
+      return;
     }
+    if (agPercentage > 100) {
+      toast.error("El porcentaje AG no puede ser mayor a 100");
+      return;
+    }
+    if (materialCost < 0) {
+      toast.error("El costo de materiales no puede ser negativo");
+      return;
+    }
+
+    try {
+      const baseUrl = process.env.NEXT_PUBLIC_BACKEND_URL;
+      const agValue = calculateAGValue();
+      const totalContractorFinal = calculateTotalContractorWithAG();
+      const subtotalFinal = calculateSubtotal();
+
+      let updatePayload: any = {
+        managementPercentage: agPercentage,
+        agValue,
+        totalContractor: totalContractorFinal,
+        materialCost,
+        materials: materialsDesc ? { description: materialsDesc } : null,
+      };
+
+      // For ConstruimosAG: also update subquotation data and subtotal
+      if (isAG) {
+        updatePayload = {
+          ...updatePayload,
+          subquotations: {
+            item_1: {
+              id: 1,
+              description: editDescripcion,
+              measure: editCantidad,
+              unit: editUnidad,
+              unitValue: editPrecioUnitario,
+              totalValue: agEditedSubtotal,
+            },
+          },
+          subtotal: subtotalFinal,
+        };
+      }
+
+      await updateQuoteItem(numericQuoteId, updatePayload as any);
+
+      // QuoteWork handling
+      let quoteWork: any = null;
+      try {
+        const quoteWorkRes = await fetch(`${baseUrl}/api/quote-works?workId=${numericWorkId}`, {
+          credentials: "include",
+        });
+        if (quoteWorkRes.ok) {
+          const quoteWorkData = await quoteWorkRes.json();
+          const works = quoteWorkData?.data?.quoteWorks ?? quoteWorkData?.data ?? quoteWorkData;
+          quoteWork = Array.isArray(works) ? works[0] : works;
+        }
+      } catch { /* ignored */ }
+
+      if (!quoteWork) {
+        const createRes = await fetch(`${baseUrl}/api/quote-works`, {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ workId: numericWorkId, subtotal: 0, total: 0 }),
+        });
+        if (!createRes.ok) throw new Error("Error al crear QuoteWork");
+        const createdData = await createRes.json();
+        quoteWork = createdData?.data ?? createdData;
+      }
+
+      if (!quote.quoteWorkId) {
+        await updateQuoteItem(numericQuoteId, { quoteWorkId: quoteWork.id } as any);
+      }
+
+      // Recalculate QuoteWork totals
+      const quoteItemsRes = await fetch(`${baseUrl}/api/quote-items?quoteWorkId=${quoteWork.id}`, {
+        credentials: "include",
+      });
+      if (!quoteItemsRes.ok) throw new Error("Error al obtener QuoteItems del QuoteWork");
+      const quoteItemsData = await quoteItemsRes.json();
+      const allQuoteItems = quoteItemsData?.data?.quoteItems ?? quoteItemsData?.data ?? quoteItemsData;
+
+      let subtotalQuoteWork = 0;
+      for (const qi of allQuoteItems) {
+        const itemRes = await fetch(`${baseUrl}/api/items/${qi.itemId}`, { credentials: "include" });
+        if (itemRes.ok) {
+          const itemData = await itemRes.json();
+          const it = itemData?.data ?? itemData;
+          if (it.active) {
+            subtotalQuoteWork +=
+              Number(qi.subtotal || 0) + Number(qi.materialCost || 0) + Number(qi.agValue || 0);
+          } else {
+            await updateQuoteItem(qi.id, { quoteWorkId: null } as any);
+          }
+        }
+      }
+
+      const qwRes = await fetch(`${baseUrl}/api/quote-works/${quoteWork.id}`, { credentials: "include" });
+      let totalQuoteWork = subtotalQuoteWork;
+      if (qwRes.ok) {
+        const qw = await qwRes.json();
+        const qwInfo = qw?.data ?? qw;
+        if (qwInfo.vat) {
+          totalQuoteWork = Math.round(subtotalQuoteWork * 1.19);
+        } else if (qwInfo.administrationPercentage || qwInfo.contingenciesPercentage || qwInfo.profitPercentage) {
+          const admin = Number(qwInfo.administrationPercentage || 0) / 100;
+          const contingencies = Number(qwInfo.contingenciesPercentage || 0) / 100;
+          const profit = Number(qwInfo.profitPercentage || 0) / 100;
+          const aiuValue = subtotalQuoteWork * (admin + contingencies);
+          const profitValue = (subtotalQuoteWork + aiuValue) * profit;
+          const ivaOnProfit = profitValue * 0.19;
+          totalQuoteWork = Math.round(subtotalQuoteWork + aiuValue + profitValue + ivaOnProfit);
+        }
+      }
+
+      await fetch(`${baseUrl}/api/quote-works/${quoteWork.id}`, {
+        method: "PUT",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ subtotal: subtotalQuoteWork, total: totalQuoteWork }),
+      });
+
+      toast.success("Cotización guardada correctamente");
+      router.push(`/management/works/${numericWorkId}`);
+    } catch (err: any) {
+      console.error(err);
+      toast.error(err.message || "Error al finalizar la cotización");
+    }
+  };
+
+  const getContractorName = (quote: any) => {
+    if (quote.ConstruimosAG) return "Construimos AG";
+    if (quote.externalContractorName) return `${quote.externalContractorName} (Externo)`;
     if (quote.assignedContractor) {
-      return `${quote.assignedContractor.firstName || ""} ${quote.assignedContractor.lastName || ""}`.trim();
+      return `${quote.assignedContractor.name || ""} (Contratista)`.trim();
     }
     return "Contratista no especificado";
   };
@@ -338,8 +328,8 @@ export default function ManagementQuoteForm({ params }: ManagementQuoteFormProps
     return (
       <main className="min-h-screen bg-background">
         <div className="container mx-auto px-3 sm:px-4 py-4 sm:py-8">
-          <div className="flex flex-col items-center justify-center py-12">
-            <Loader2 className="h-8 w-8 animate-spin mb-4 text-purple-500" />
+          <div className="flex flex-col items-center justify-center py-20">
+            <Loader2 className="h-10 w-10 animate-spin mb-4 text-purple-500" />
             <p className="text-muted-foreground">Cargando cotización...</p>
           </div>
         </div>
@@ -351,20 +341,15 @@ export default function ManagementQuoteForm({ params }: ManagementQuoteFormProps
     return (
       <main className="min-h-screen bg-background">
         <div className="container mx-auto px-3 sm:px-4 py-4 sm:py-8">
-          <Card className="max-w-2xl mx-auto">
-            <CardHeader className="bg-red-500 text-white">
-              <CardTitle>Error</CardTitle>
+          <Card className="max-w-2xl mx-auto border-red-200">
+            <CardHeader className="bg-red-500 text-white rounded-t-lg">
+              <CardTitle>Error al cargar</CardTitle>
             </CardHeader>
-            <CardContent className="p-6">
-              <div className="space-y-4">
-                <p className="text-destructive">{error || "No se pudo cargar la información"}</p>
-                <Button
-                  onClick={() => router.push(`/management/works/${numericWorkId}`)}
-                  variant="outline"
-                >
-                  Volver
-                </Button>
-              </div>
+            <CardContent className="p-6 space-y-4">
+              <p className="text-destructive">{error || "No se pudo cargar la información"}</p>
+              <Button onClick={() => router.push(`/management/works/${numericWorkId}`)} variant="outline">
+                Volver
+              </Button>
             </CardContent>
           </Card>
         </div>
@@ -372,266 +357,390 @@ export default function ManagementQuoteForm({ params }: ManagementQuoteFormProps
     );
   }
 
+  // Parse subquotation for display
+  let subqDisplay: any = quote.subquotations;
+  if (typeof subqDisplay === "string") {
+    try { subqDisplay = JSON.parse(subqDisplay); } catch { subqDisplay = {}; }
+  }
+  const subqItems = subqDisplay ? Object.values(subqDisplay) : [];
+
   return (
     <main className="min-h-screen bg-background">
-      <div className="container mx-auto px-3 sm:px-4 py-4 sm:py-8">
+      <div className="container mx-auto px-3 sm:px-4 py-4 sm:py-8 max-w-4xl">
+
         {/* Header */}
-        <div className="flex items-start gap-3 sm:gap-4 mb-6">
+        <div className="flex items-center gap-3 mb-8">
           <Button
             variant="ghost"
             size="icon"
             onClick={() => router.push(`/management/works/${numericWorkId}/items/${numericItemId}/quotations`)}
-            className="shrink-0 mt-1"
+            className="shrink-0"
           >
             <ArrowLeft className="h-5 w-5" />
           </Button>
-          <div className="min-w-0">
-            <h1 className="text-xl sm:text-2xl font-bold text-foreground mb-2">
-              {quote.quoteWorkId ? "Editar Cotización" : "Ajustar Cotización"}
-            </h1>
-            <p className="text-sm sm:text-base text-muted-foreground">
-              {item.description}
-            </p>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2 mb-0.5">
+              <h1 className="text-xl sm:text-2xl font-bold text-foreground">
+                {quote.quoteWorkId ? "Editar Cotización" : "Ajustar Cotización"}
+              </h1>
+              {isAG ? (
+                <Badge className="bg-purple-100 text-purple-700 border-purple-200">
+                  <Building2 className="h-3 w-3 mr-1" />
+                  Construimos AG
+                </Badge>
+              ) : (
+                <Badge variant="secondary">
+                  <User className="h-3 w-3 mr-1" />
+                  Contratista
+                </Badge>
+              )}
+            </div>
+            <p className="text-sm text-muted-foreground truncate">{item.description}</p>
           </div>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Información de la cotización seleccionada */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Cotización Seleccionada</CardTitle>
+
+          {/* ── SECCIÓN 1: INFORMACIÓN DE LA COTIZACIÓN ── */}
+          <Card className="overflow-hidden">
+            <CardHeader className={`py-4 px-6 ${isAG ? "bg-gradient-to-r from-purple-600 to-purple-700 text-white" : "bg-gradient-to-r from-orange-600 to-orange-700 text-white"}`}>
+              <div className="flex items-center gap-2">
+                {isAG ? <Building2 className="h-5 w-5" /> : <User className="h-5 w-5" />}
+                <CardTitle className="text-white text-base">
+                  {isAG ? "Cotización — Construimos AG" : `Cotización — ${getContractorName(quote)}`}
+                </CardTitle>
+              </div>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="text-sm font-medium text-gray-500">
-                    Contratista
-                  </label>
-                  <Input
-                    value={getContractorName(quote)}
-                    className="bg-gray-50"
-                    readOnly
-                  />
-                </div>
-                {quote.externalContractorIdentifier && (
-                  <div>
-                    <label className="text-sm font-medium text-gray-500">
-                      Identificación
-                    </label>
-                    <Input
-                      value={quote.externalContractorIdentifier}
-                      className="bg-gray-50"
-                      readOnly
-                    />
+            <CardContent className="p-6 space-y-5">
+
+              {/* Contratista (read-only) */}
+              {!isAG && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold uppercase text-muted-foreground tracking-wider">
+                      Contratista
+                    </Label>
+                    <Input value={getContractorName(quote)} className="bg-muted/30 font-medium" readOnly />
                   </div>
-                )}
-              </div>
-
-              <Separator />
-
-              {/* Items de la cotización */}
-              <div>
-                <h3 className="text-sm font-medium text-gray-500 mb-3">
-                  Procesos Cotizados
-                </h3>
-                {quote.subquotations && Object.values(quote.subquotations).map((item: any, idx: number) => (
-                  <div key={idx} className="space-y-2 mb-4">
-                    <div className="grid grid-cols-2 gap-x-8 gap-y-2 text-sm">
-                      <div>
-                        <span className="text-gray-500">Descripción</span>
-                        <p className="font-medium">{item.description}</p>
-                      </div>
-                      <div>
-                        <span className="text-gray-500">Valor Unitario</span>
-                        <p className="font-medium">${formatCurrency(Number(item.unitValue))}</p>
-                      </div>
-                      <div>
-                        <span className="text-gray-500">Medida</span>
-                        <p className="font-medium">{item.measure} {item.unit}</p>
-                      </div>
-                      <div>
-                        <span className="text-gray-500">Total</span>
-                        <p className="font-medium">${formatCurrency(Number(item.totalValue))}</p>
-                      </div>
+                  {quote.externalContractorIdentifier && (
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-semibold uppercase text-muted-foreground tracking-wider">
+                        Identificación
+                      </Label>
+                      <Input value={quote.externalContractorIdentifier} className="bg-muted/30" readOnly />
                     </div>
-                    {idx < Object.values(quote.subquotations).length - 1 && <Separator className="mt-2" />}
-                  </div>
-                ))}
-              </div>
-
-              {quote.materials?.description && (
-                <>
-                  <Separator />
-                  <div>
-                    <label className="text-sm font-medium text-gray-500">
-                      Materiales (Original)
-                    </label>
-                    <Textarea
-                      value={quote.materials.description}
-                      className="bg-gray-50 mt-1"
-                      rows={2}
-                      readOnly
-                    />
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Puedes modificar esto en "Ajustes de Gerencia"
-                    </p>
-                  </div>
-                </>
+                  )}
+                </div>
               )}
 
               <Separator />
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="text-sm font-medium text-gray-500">
-                    Subtotal Contratista
-                  </label>
-                  <Input
-                    value={`$${formatCurrency(Number(quote.subtotal))}`}
-                    className="bg-gray-50 font-semibold"
-                    readOnly
-                  />
-                </div>
-                {quote.vat && (
-                  <div>
-                    <label className="text-sm font-medium text-gray-500">
-                      {quote.agValue ? "AIU + IVA" : "IVA (19%)"}
-                    </label>
-                    <Badge className={quote.agValue ? "bg-blue-500" : "bg-green-500"}>
-                      Incluido
-                    </Badge>
+              {/* Procesos cotizados */}
+              <div>
+                <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
+                  <FileText className="h-4 w-4 text-muted-foreground" />
+                  Procesos Cotizados
+                </h3>
+
+                {isAG ? (
+                  /* ConstruimosAG: editable fields */
+                  <div className="rounded-lg border bg-purple-50/50 dark:bg-purple-900/10 p-4 space-y-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="sm:col-span-2 space-y-1.5">
+                        <Label className="text-xs font-semibold uppercase text-muted-foreground tracking-wider">
+                          Descripción <span className="text-red-500">*</span>
+                        </Label>
+                        <Textarea
+                          value={editDescripcion}
+                          onChange={(e) => setEditDescripcion(e.target.value)}
+                          placeholder="Descripción de la actividad..."
+                          rows={2}
+                          className="resize-none"
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs font-semibold uppercase text-muted-foreground tracking-wider">
+                          Unidad <span className="text-red-500">*</span>
+                        </Label>
+                        <Select
+                          value={editUnidad}
+                          onValueChange={(value) => setEditUnidad(value)}
+                        >
+                          <SelectTrigger className="w-full">
+                            <SelectValue placeholder="Seleccionar unidad" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="UND">UND</SelectItem>
+                            <SelectItem value="M">M</SelectItem>
+                            <SelectItem value="M2">M2</SelectItem>
+                            <SelectItem value="M3">M3</SelectItem>
+                            <SelectItem value="ML">ML</SelectItem>
+                            <SelectItem value="KM">KM</SelectItem>
+                            <SelectItem value="KG">KG</SelectItem>
+                            <SelectItem value="LT">LT</SelectItem>
+                            <SelectItem value="GLB">GLB</SelectItem>
+                            <SelectItem value="HR">HR</SelectItem>
+                            <SelectItem value="DIA">DIA</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs font-semibold uppercase text-muted-foreground tracking-wider">
+                          Cantidad <span className="text-red-500">*</span>
+                        </Label>
+                        <Input
+                          type="text"
+                          value={editCantidadDisplay}
+                          onChange={(e) =>
+                            handleCostInput(e.target.value, setEditCantidadDisplay, setEditCantidad)
+                          }
+                          onBlur={() => handleCostBlur(editCantidad, setEditCantidadDisplay)}
+                          placeholder="0"
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs font-semibold uppercase text-muted-foreground tracking-wider">
+                          Valor Unitario <span className="text-red-500">*</span>
+                        </Label>
+                        <div className="relative">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">$</span>
+                          <Input
+                            type="text"
+                            value={editPrecioUnitarioDisplay}
+                            onChange={(e) =>
+                              handleCostInput(e.target.value, setEditPrecioUnitarioDisplay, setEditPrecioUnitario)
+                            }
+                            onBlur={() => handleCostBlur(editPrecioUnitario, setEditPrecioUnitarioDisplay)}
+                            placeholder="0"
+                            className="pl-7"
+                          />
+                        </div>
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs font-semibold uppercase text-muted-foreground tracking-wider">
+                          Valor Total (calculado)
+                        </Label>
+                        <div className="relative">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">$</span>
+                          <Input
+                            value={formatNumberWithThousands(agEditedSubtotal)}
+                            className="bg-muted/30 font-bold text-purple-700 dark:text-purple-400 pl-7"
+                            readOnly
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  /* External contractor: read-only display */
+                  <div className="space-y-3">
+                    {subqItems.map((sq: any, idx: number) => (
+                      <div
+                        key={idx}
+                        className="rounded-lg border bg-muted/20 p-4 grid grid-cols-2 sm:grid-cols-4 gap-x-6 gap-y-3 text-sm"
+                      >
+                        <div className="col-span-2 sm:col-span-4">
+                          <span className="text-xs font-semibold uppercase text-muted-foreground tracking-wider">
+                            Descripción
+                          </span>
+                          <p className="font-medium mt-0.5">{sq.description}</p>
+                        </div>
+                        <div>
+                          <span className="text-xs font-semibold uppercase text-muted-foreground tracking-wider">
+                            Unidad
+                          </span>
+                          <p className="font-medium mt-0.5">{sq.unit}</p>
+                        </div>
+                        <div>
+                          <span className="text-xs font-semibold uppercase text-muted-foreground tracking-wider">
+                            Cantidad
+                          </span>
+                          <p className="font-medium mt-0.5">{formatCurrency(Number(sq.measure))}</p>
+                        </div>
+                        <div>
+                          <span className="text-xs font-semibold uppercase text-muted-foreground tracking-wider">
+                            V. Unitario
+                          </span>
+                          <p className="font-medium mt-0.5">${formatCurrency(Number(sq.unitValue))}</p>
+                        </div>
+                        <div>
+                          <span className="text-xs font-semibold uppercase text-muted-foreground tracking-wider">
+                            V. Total
+                          </span>
+                          <p className="font-bold text-purple-700 dark:text-purple-400 mt-0.5">
+                            ${formatCurrency(Number(sq.totalValue))}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 )}
+              </div>
+
+              {/* Subtotal del contratista (read only for external, calculated for AG) */}
+              <div className="flex items-center justify-between rounded-lg bg-muted/30 px-4 py-3 border">
+                <span className="text-sm font-medium text-muted-foreground">
+                  Subtotal Contratista
+                </span>
+                <span className="text-lg font-bold tabular-nums">
+                  ${formatCurrency(calculateSubtotal())}
+                </span>
               </div>
             </CardContent>
           </Card>
 
-          {/* Ajustes de Gerencia */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Ajustes de Gerencia</CardTitle>
+          {/* ── SECCIÓN 2: AJUSTES DE GERENCIA ── */}
+          <Card className="overflow-hidden">
+            <CardHeader className="py-4 px-6 bg-gradient-to-r from-blue-600 to-blue-700 text-white">
+              <div className="flex items-center gap-2">
+                <DollarSign className="h-5 w-5" />
+                <CardTitle className="text-white text-base">Ajustes de Gerencia</CardTitle>
+              </div>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <label className="text-sm font-medium text-gray-500">
+            <CardContent className="p-6 space-y-5">
+
+              {/* Descripción de materiales */}
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold uppercase text-muted-foreground tracking-wider">
                   Descripción de Materiales
-                </label>
+                </Label>
                 <Textarea
                   value={materialsDesc}
                   onChange={(e) => setMaterialsDesc(e.target.value)}
-                  placeholder="Descripción de los materiales requeridos..."
+                  placeholder={isAG ? "Descripción de materiales de Construimos AG..." : "Descripción de los materiales requeridos..."}
                   rows={3}
+                  className="resize-none"
                 />
-                <p className="text-xs text-muted-foreground mt-1">
-                  Modifica la descripción de materiales si es necesario
-                </p>
+                {!isAG && quote.materials?.description && (
+                  <p className="text-xs text-muted-foreground">
+                    Original del contratista: <em>{quote.materials.description}</em>
+                  </p>
+                )}
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="text-sm font-medium text-gray-500">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {/* Costo de Materiales */}
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-semibold uppercase text-muted-foreground tracking-wider">
                     Costo de Materiales <span className="text-red-500">*</span>
-                  </label>
-                  <Input
-                    type="text"
-                    value={materialCostDisplay}
-                    onChange={handleMaterialCostChange}
-                    onBlur={handleMaterialCostBlur}
-                    placeholder="0,00"
-                    required
-                  />
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Ajusta el costo de materiales (se mostrará con formato de miles)
-                  </p>
+                  </Label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">$</span>
+                    <Input
+                      type="text"
+                      value={materialCostDisplay}
+                      onChange={(e) =>
+                        handleCostInput(e.target.value, setMaterialCostDisplay, setMaterialCost)
+                      }
+                      onBlur={() => handleCostBlur(materialCost, setMaterialCostDisplay)}
+                      placeholder="0"
+                      className="pl-7"
+                      required
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground">Escribe el valor; se formateará con puntos de miles</p>
                 </div>
 
-                <div>
-                  <label className="text-sm font-medium text-gray-500">
+                {/* Porcentaje AG */}
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-semibold uppercase text-muted-foreground tracking-wider">
                     Porcentaje AG <span className="text-red-500">*</span>
-                  </label>
-                  <Input
-                    type="number"
-                    min="0"
-                    max="100"
-                    step="0.01"
-                    value={agPercentage || ""}
-                    onChange={(e) => {
-                      const value = Number.parseFloat(e.target.value) || 0;
-                      if (value > 100) {
-                        setAgPercentage(100);
-                        toast.warning("El porcentaje AG no puede ser mayor a 100%");
-                      } else {
-                        setAgPercentage(value);
-                      }
-                    }}
-                    placeholder="0.00"
-                    required
-                  />
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Porcentaje de administración y gestión (máximo 100%)
-                  </p>
+                  </Label>
+                  <div className="relative">
+                    <Input
+                      type="number"
+                      min="0"
+                      max="100"
+                      step="0.01"
+                      value={agPercentage || ""}
+                      onChange={(e) => {
+                        const value = Number.parseFloat(e.target.value) || 0;
+                        if (value > 100) {
+                          setAgPercentage(100);
+                          toast.warning("El porcentaje AG no puede ser mayor a 100%");
+                        } else {
+                          setAgPercentage(value);
+                        }
+                      }}
+                      placeholder="0.00"
+                      className="pr-8"
+                      required
+                    />
+                    <Percent className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  </div>
+                  <p className="text-xs text-muted-foreground">Porcentaje de administración y gestión (máx. 100%)</p>
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          {/* Resumen */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Resumen Final</CardTitle>
+          {/* ── SECCIÓN 3: RESUMEN FINAL ── */}
+          <Card className="overflow-hidden border-2 border-green-200 dark:border-green-800">
+            <CardHeader className="py-4 px-6 bg-gradient-to-r from-green-600 to-green-700 text-white">
+              <CardTitle className="text-white text-base">Resumen Final</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-500">Subtotal Contratista:</span>
-                <span className="font-medium">${formatCurrency(calculateSubtotal())}</span>
-              </div>
+            <CardContent className="p-6">
+              <div className="space-y-3">
+                <div className="flex justify-between items-center text-sm">
+                  <span className="text-muted-foreground">Subtotal contratista:</span>
+                  <span className="font-semibold tabular-nums">${formatCurrency(calculateSubtotal())}</span>
+                </div>
 
-              {materialCost > 0 && (
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-500">Materiales:</span>
-                  <span className="font-medium text-blue-600">
-                    +${formatCurrency(materialCost)}
+                {materialCost > 0 && (
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="text-muted-foreground">+ Materiales:</span>
+                    <span className="font-semibold text-blue-600 tabular-nums">
+                      +${formatCurrency(materialCost)}
+                    </span>
+                  </div>
+                )}
+
+                <Separator />
+
+                <div className="flex justify-between items-center text-sm">
+                  <span className="text-muted-foreground">Base total contratista:</span>
+                  <span className="font-semibold tabular-nums">${formatCurrency(calculateTotalContractor())}</span>
+                </div>
+
+                <div className="flex justify-between items-center text-sm">
+                  <div className="flex items-center gap-1 text-muted-foreground">
+                    <span>+ AG</span>
+                    <Badge variant="outline" className="text-[10px] py-0 h-4">
+                      {agPercentage}%
+                    </Badge>
+                  </div>
+                  <span className="font-semibold text-purple-600 tabular-nums">
+                    +${formatCurrency(calculateAGValue())}
                   </span>
                 </div>
-              )}
 
-              <Separator />
+                <Separator />
 
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-500">Total Contratista (base):</span>
-                <span className="font-medium">${formatCurrency(calculateTotalContractor())}</span>
-              </div>
-
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-500">AG ({agPercentage}%):</span>
-                <span className="font-medium text-purple-600">
-                  +${formatCurrency(calculateAGValue())}
-                </span>
-              </div>
-
-              <Separator />
-
-              <div className="flex justify-between text-lg">
-                <span className="font-bold">Subtotal:</span>
-                <span className="font-bold text-green-600">
-                  ${formatCurrency(calculateTotalContractorWithAG())}
-                </span>
+                <div className="flex justify-between items-center">
+                  <span className="text-base font-bold">Subtotal Final:</span>
+                  <span className="text-2xl font-bold text-green-600 tabular-nums">
+                    ${formatCurrency(calculateTotalContractorWithAG())}
+                  </span>
+                </div>
               </div>
             </CardContent>
           </Card>
 
           {/* Botones */}
-          <div className="flex justify-end gap-4">
+          <div className="flex justify-end gap-3 pb-6">
             <Button
               type="button"
               variant="outline"
-              onClick={() => router.push(`/management/works/${numericWorkId}/items/${numericItemId}/quotations`)}
+              onClick={() =>
+                router.push(`/management/works/${numericWorkId}/items/${numericItemId}/quotations`)
+              }
+              disabled={submitting}
             >
               Cancelar
             </Button>
             <Button
               type="submit"
-              className="bg-purple-500 hover:bg-purple-600 text-white"
+              className="bg-purple-600 hover:bg-purple-700 text-white min-w-[180px]"
               disabled={submitting || agPercentage <= 0}
             >
               {submitting ? (
@@ -643,6 +752,7 @@ export default function ManagementQuoteForm({ params }: ManagementQuoteFormProps
                 <>
                   <Save className="h-4 w-4 mr-2" />
                   {quote.quoteWorkId ? "Actualizar Cotización" : "Finalizar Cotización"}
+                  <ChevronRight className="h-4 w-4 ml-1" />
                 </>
               )}
             </Button>

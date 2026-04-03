@@ -556,6 +556,14 @@ export function ItemsTable({
   };
 
   const getPersonnelDisplay = (item: Item) => {
+    const finalizedQuote = (item.quoteItems as any)?.find((q: any) => q.quoteWorkId !== null);
+    if (finalizedQuote) {
+      if (finalizedQuote.ConstruimosAG) return "Construimos AG";
+      if (finalizedQuote.externalContractorName) return `${finalizedQuote.externalContractorName} (Externo)`;
+      const c = finalizedQuote.assignedContractor || finalizedQuote.user;
+      if (c) return c.name || "Sin nombre";
+    }
+
     if (item.quoteItems?.some(q => q.ConstruimosAG)) {
       return "Construimos AG";
     }
@@ -917,72 +925,142 @@ export function ItemsTable({
               ) : (
                 <>
                   {/* Desktop Table */}
-                  <div className="hidden md:block border rounded-lg overflow-x-auto">
-                    <Table>
+                  <div className="hidden md:block rounded-lg overflow-x-auto border border-border">
+                    <Table className="border-collapse w-full">
                       <TableHeader>
-                        <TableRow className="bg-muted/50">
-                          <TableHead className="min-w-40">Descripción</TableHead>
-                          <TableHead className="whitespace-nowrap">Personal</TableHead>
-                          <TableHead className="whitespace-nowrap">Tiempo Est.</TableHead>
-                          <TableHead className="whitespace-nowrap">Und.</TableHead>
-                          <TableHead className="whitespace-nowrap">Cant.</TableHead>
-                          <TableHead className="whitespace-nowrap">V. Unit.</TableHead>
-                          <TableHead className="whitespace-nowrap">V. Total</TableHead>
-                          <TableHead className="whitespace-nowrap">Creado</TableHead>
-                          <TableHead className="whitespace-nowrap">Estado</TableHead>
-                          <TableHead className="text-right whitespace-nowrap">Acciones</TableHead>
+                        <TableRow className="bg-muted/60">
+                          <TableHead className="border border-border w-48 min-w-[160px] text-xs text-center">Descripción</TableHead>
+                          <TableHead className="border border-border w-32 text-xs text-center whitespace-nowrap">Personal</TableHead>
+                          <TableHead className="border border-border w-28 text-xs text-center whitespace-nowrap">Tiempo Est.</TableHead>
+                          <TableHead className="border border-border w-16 text-xs text-center">Und.</TableHead>
+                          <TableHead className="border border-border w-16 text-xs text-center">Cant.</TableHead>
+                          <TableHead className="border border-border w-24 text-xs text-center whitespace-nowrap">V. Unit.</TableHead>
+                          <TableHead className="border border-border w-24 text-xs text-center whitespace-nowrap">V. Total</TableHead>
+                          <TableHead className="border border-border w-36 text-xs text-center">Materiales</TableHead>
+                          {management && (
+                            <>
+                              <TableHead className="border border-border w-24 text-xs text-center whitespace-nowrap">Costo Mat.</TableHead>
+                              <TableHead className="border border-border w-16 text-xs text-center">% AG</TableHead>
+                              <TableHead className="border border-border w-24 text-xs text-center whitespace-nowrap">V. Unit. AG</TableHead>
+                              <TableHead className="border border-border w-24 text-xs text-center whitespace-nowrap">V. Total AG</TableHead>
+                            </>
+                          )}
+                          <TableHead className="border border-border w-24 text-xs text-center whitespace-nowrap">Creado</TableHead>
+                          <TableHead className="border border-border w-20 text-xs text-center whitespace-nowrap">Estado</TableHead>
+                          <TableHead className="border border-border w-28 text-xs text-center whitespace-nowrap">Acciones</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
                         {group.items.map((item: Item) => {
                           const isFinished = hasFinishedQuotation(item);
                           return (
-                            <TableRow key={item.id}>
-                              <TableCell className="max-w-[200px]">
-                                <p className="font-medium line-clamp-2">{item.description}</p>
+                            <TableRow key={item.id} className="hover:bg-muted/30">
+                              <TableCell className="border border-border align-middle py-2 min-w-[120px] max-w-[200px]">
+                                <p className="font-medium text-xs break-words whitespace-normal">{item.description}</p>
                               </TableCell>
-                              <TableCell className="whitespace-nowrap">
-                                <span className="text-sm font-semibold text-purple-700 dark:text-purple-400">
+                              <TableCell className="border border-border align-middle py-2 min-w-[100px]">
+                                <span className="text-xs font-semibold text-purple-700 dark:text-purple-400 break-words whitespace-normal">
                                   {getPersonnelDisplay(item)}
                                 </span>
                               </TableCell>
-                              <TableCell className="whitespace-nowrap text-sm">
+                              <TableCell className="border border-border align-middle text-xs py-2 whitespace-nowrap">
                                 {formatEstimatedTime(item.estimatedExecutionTime)}
                               </TableCell>
 
                               {(() => {
-                                const agQuote = item.quoteItems?.find(q => q.ConstruimosAG);
-                                if (agQuote) {
-                                  let subq: any = agQuote.subquotations;
+                                const finalizedQuote = item.quoteItems?.find((q: any) => q.quoteWorkId !== null);
+                                const agQuote = item.quoteItems?.find((q: any) => q.ConstruimosAG);
+                                const displayQuote = finalizedQuote || agQuote;
+                                const hasAnyQuote = (item.quoteItems?.length ?? 0) > 0;
+
+                                if (displayQuote) {
+                                  let subq: any = displayQuote.subquotations;
                                   if (typeof subq === "string") {
                                     try { subq = JSON.parse(subq); } catch (e) { subq = {}; }
                                   }
+                                  let mats: any = displayQuote.materials;
+                                  if (typeof mats === "string") {
+                                    try { mats = JSON.parse(mats); } catch (e) { mats = {}; }
+                                  }
                                   const data = subq?.item_1 || {};
+                                  const materialsText = mats?.description || " ";
+
                                   return (
                                     <>
-                                      <TableCell className="text-sm">{data.unit || "UND"}</TableCell>
-                                      <TableCell className="text-sm">{data.measure || "0"}</TableCell>
-                                      <TableCell className="text-sm font-medium">
+                                      <TableCell className="text-sm border border-border">{data.unit || "UND"}</TableCell>
+                                      <TableCell className="text-sm border border-border">{Number(data.measure || 0).toLocaleString("es-CO")}</TableCell>
+                                      <TableCell className="text-sm font-medium border border-border">
                                         ${Number(data.unitValue || 0).toLocaleString()}
                                       </TableCell>
-                                      <TableCell className="text-sm font-bold text-purple-600">
+                                      <TableCell className="text-sm font-bold text-purple-600 border border-border">
                                         ${Number(data.totalValue || 0).toLocaleString()}
                                       </TableCell>
+                                      <TableCell className="text-sm max-w-[120px] border border-border">
+                                        <span className="line-clamp-2 text-xs">{materialsText}</span>
+                                      </TableCell>
+                                      {management && (
+                                        <>
+                                          <TableCell className="text-sm border border-border">
+                                            {displayQuote.materialCost != null ? `$${Number(displayQuote.materialCost).toLocaleString()}` : " "}
+                                          </TableCell>
+                                          <TableCell className="text-sm border border-border">
+                                            {displayQuote.managementPercentage != null ? `${displayQuote.managementPercentage}%` : " "}
+                                          </TableCell>
+                                          <TableCell className="text-sm font-medium text-blue-600 border border-border text-center">
+                                            {
+                                              displayQuote.managementPercentage != null && Number(data.measure) > 0
+                                                ? `$${Math.round((Number(data.totalValue) + Number(displayQuote.materialCost || 0) +
+                                                  (Number(displayQuote.agValue || 0))) /
+                                                  Number(data.measure)
+                                                ).toLocaleString()}`
+                                                : ""
+                                            }
+                                          </TableCell>
+                                          <TableCell className="text-sm font-bold text-blue-700 border border-border text-center">
+                                            {
+                                              displayQuote.managementPercentage != null
+                                                ? `$${Math.round((Number(data.totalValue) + Number(displayQuote.materialCost || 0) +
+                                                  (Number(displayQuote.agValue || 0)))
+                                                ).toLocaleString()}`
+                                                : ""
+                                            }
+                                          </TableCell>
+                                        </>
+                                      )}
                                     </>
+                                  );
+                                } else if (!coordinator && !management) {
+                                  // Coordinator non-AG item
+                                  return (
+                                    <TableCell colSpan={management ? 9 : 5} className="text-xs text-muted-foreground italic text-center">
+                                      Cotización asignada a contratista
+                                    </TableCell>
+                                  );
+                                } else if (management && !hasAnyQuote) {
+                                  return (
+                                    <TableCell colSpan={9} className="text-xs text-muted-foreground italic text-center">
+                                      Esperando cotizaciones de contratistas
+                                    </TableCell>
+                                  );
+                                } else if (management && hasAnyQuote) {
+                                  return (
+                                    <TableCell colSpan={9} className="text-xs text-amber-600 italic text-center font-medium">
+                                      Esperando selección de cotización y asignación de precios
+                                    </TableCell>
                                   );
                                 } else {
                                   return (
-                                    <TableCell colSpan={4} className="text-xs text-muted-foreground italic text-center">
+                                    <TableCell colSpan={5} className="text-xs text-muted-foreground italic text-center">
                                       Esperando cotizaciones de contratistas
                                     </TableCell>
                                   );
                                 }
                               })()}
 
-                              <TableCell className="text-xs whitespace-nowrap text-muted-foreground">
+                              <TableCell className="border border-border text-xs whitespace-nowrap text-muted-foreground py-2">
                                 {formatDate(item.createdAt)}
                               </TableCell>
-                              <TableCell>
+                              <TableCell className="border border-border py-2">
                                 <div className="flex gap-1 flex-wrap">
                                   <Badge
                                     variant={item.active ? "default" : "secondary"}
@@ -1001,14 +1079,15 @@ export function ItemsTable({
                                   )}
                                 </div>
                               </TableCell>
-                              <TableCell>
-                                <div className="flex items-center justify-end gap-1 flex-wrap">
-                                  {management && !isFinished && (
+                              <TableCell className="border border-border py-2">
+                                <div className="flex items-center justify-center gap-1 flex-wrap">
+                                  {management && !isFinished && (item.quoteItems?.length ?? 0) > 0 && (
                                     <Button
                                       variant="default"
                                       size="sm"
                                       onClick={() => handleViewQuotations(item.id)}
                                       className="h-8 px-2 bg-orange-500 hover:bg-orange-600"
+                                      title="Seleccionar cotización"
                                     >
                                       <FileText className="h-3.5 w-3.5" />
                                     </Button>
@@ -1154,33 +1233,91 @@ export function ItemsTable({
                             </div>
 
                             {(() => {
-                              const agQuote = item.quoteItems?.find(q => q.ConstruimosAG);
-                              if (agQuote) {
-                                let subq: any = agQuote.subquotations;
+                              const finalizedQuote = (item.quoteItems as any)?.find((q: any) => q.quoteWorkId !== null);
+                              const agQuote = item.quoteItems?.find((q: any) => q.ConstruimosAG);
+                              const displayQuote = finalizedQuote || agQuote;
+                              const hasAnyQuote = (item.quoteItems?.length ?? 0) > 0;
+
+                              if (displayQuote) {
+                                let subq: any = displayQuote.subquotations;
                                 if (typeof subq === "string") {
                                   try { subq = JSON.parse(subq); } catch (e) { subq = {}; }
                                 }
+                                let mats: any = displayQuote.materials;
+                                if (typeof mats === "string") {
+                                  try { mats = JSON.parse(mats); } catch (e) { mats = {}; }
+                                }
                                 const data = subq?.item_1 || {};
+                                const materialsText = mats?.description;
+
                                 return (
-                                  <div className="col-span-2 bg-purple-50 dark:bg-purple-900/10 p-2 rounded-md border border-purple-100 dark:border-purple-800 grid grid-cols-3 gap-2">
-                                    <div className="flex flex-col">
-                                      <span className="text-[9px] text-purple-600 font-bold uppercase">Cant/Und</span>
-                                      <span className="text-xs">{data.measure} {data.unit}</span>
+                                  <>
+                                    <div className="col-span-2 bg-purple-50 dark:bg-purple-900/10 p-2 rounded-md border border-purple-100 dark:border-purple-800 grid grid-cols-3 gap-2">
+                                      <div className="flex flex-col">
+                                        <span className="text-[9px] text-purple-600 font-bold uppercase">Cant/Und</span>
+                                        <span className="text-xs">{Number(data.measure || 0).toLocaleString("es-CO")} {data.unit}</span>
+                                      </div>
+                                      <div className="flex flex-col text-center">
+                                        <span className="text-[9px] text-purple-600 font-bold uppercase">V. Unit</span>
+                                        <span className="text-xs font-medium">${Number(data.unitValue || 0).toLocaleString()}</span>
+                                      </div>
+                                      <div className="flex flex-col text-right">
+                                        <span className="text-[9px] text-purple-600 font-bold uppercase">V. Total</span>
+                                        <span className="text-xs font-bold text-purple-700">${Number(data.totalValue || 0).toLocaleString()}</span>
+                                      </div>
                                     </div>
-                                    <div className="flex flex-col text-center">
-                                      <span className="text-[9px] text-purple-600 font-bold uppercase">V. Unit</span>
-                                      <span className="text-xs font-medium">${Number(data.unitValue || 0).toLocaleString()}</span>
-                                    </div>
-                                    <div className="flex flex-col text-right">
-                                      <span className="text-[9px] text-purple-600 font-bold uppercase">V. Total</span>
-                                      <span className="text-xs font-bold text-purple-700">${Number(data.totalValue || 0).toLocaleString()}</span>
-                                    </div>
+                                    {materialsText && (
+                                      <div className="col-span-2 bg-muted/20 p-2 rounded-md border text-xs">
+                                        <span className="text-[9px] text-muted-foreground font-bold uppercase block mb-0.5">Materiales</span>
+                                        <span className="text-xs">{materialsText}</span>
+                                      </div>
+                                    )}
+                                    {management && (
+                                      <div className="col-span-2 bg-blue-50 dark:bg-blue-900/10 p-2 rounded-md border border-blue-100 dark:border-blue-800 grid grid-cols-2 gap-2">
+                                        <div className="flex flex-col">
+                                          <span className="text-[9px] text-blue-600 font-bold uppercase">Costo Mat.</span>
+                                          <span className="text-xs">{displayQuote.materialCost != null ? `$${Number(displayQuote.materialCost).toLocaleString()}` : " "}</span>
+                                        </div>
+                                        <div className="flex flex-col text-right">
+                                          <span className="text-[9px] text-blue-600 font-bold uppercase">% AG</span>
+                                          <span className="text-xs">{displayQuote.managementPercentage != null ? `${displayQuote.managementPercentage}%` : " "}</span>
+                                        </div>
+                                        <div className="flex flex-col">
+                                          <span className="text-[9px] text-blue-600 font-bold uppercase">V. Unit. AG</span>
+                                          <span className="text-xs font-medium text-blue-600">
+                                            {displayQuote.managementPercentage != null && Number(data.measure) > 0
+                                              ? `$${Math.round((Number(data.totalValue) + Number(displayQuote.materialCost || 0) + (Number(displayQuote.agValue || 0))) / Number(data.measure)).toLocaleString()}`
+                                              : " "}
+                                          </span>
+                                        </div>
+                                        <div className="flex flex-col text-right">
+                                          <span className="text-[9px] text-blue-600 font-bold uppercase">V. Total AG</span>
+                                          <span className="text-xs font-bold text-blue-700">
+                                            {displayQuote.agValue != null
+                                              ? `$${Math.round(Number(data.totalValue) + Number(displayQuote.materialCost || 0) + Number(displayQuote.agValue || 0)).toLocaleString()}`
+                                              : " "}
+                                          </span>
+                                        </div>
+                                      </div>
+                                    )}
+                                  </>
+                                );
+                              } else if (management && !hasAnyQuote) {
+                                return (
+                                  <div className="col-span-2 bg-muted/30 p-2 rounded-md text-xs text-center italic text-muted-foreground">
+                                    Esperando cotizaciones de contratistas
+                                  </div>
+                                );
+                              } else if (management && hasAnyQuote) {
+                                return (
+                                  <div className="col-span-2 bg-amber-50 dark:bg-amber-900/10 p-2 rounded-md border border-amber-200 text-xs text-center italic text-amber-700 font-medium">
+                                    Esperando selección y asignación de precios
                                   </div>
                                 );
                               } else {
                                 return (
                                   <div className="col-span-2 bg-muted/30 p-2 rounded-md text-xs text-center italic text-muted-foreground">
-                                    Esperando cotizaciones de contratistas
+                                    Cotización asignada a contratista
                                   </div>
                                 );
                               }
@@ -1195,7 +1332,7 @@ export function ItemsTable({
                           <div className="flex items-center gap-2 pt-2 border-t flex-wrap">
                             {management ? (
                               <>
-                                {!isFinished && (
+                                {!isFinished && (item.quoteItems?.length ?? 0) > 0 && (
                                   <Button
                                     variant="default"
                                     size="sm"
@@ -1203,7 +1340,7 @@ export function ItemsTable({
                                     className="flex-1 bg-orange-500 hover:bg-orange-600"
                                   >
                                     <FileText className="h-4 w-4 mr-1" />
-                                    Cotizaciones
+                                    Seleccionar Cot.
                                   </Button>
                                 )}
                                 {isFinished && (

@@ -433,8 +433,8 @@ export default function ContractorQuoteItemPage({
     return (
         <main className="min-h-screen bg-background">
             <div className="container mx-auto px-3 sm:px-4 py-4 sm:py-8">
-                <h1 className="text-xl sm:text-2xl font-semibold mb-6">
-                    Cotizar ítem: {item.description}
+                <h1 className="text-xl sm:text-2xl font-bold mb-8">
+                    Cotizar Ítem
                 </h1>
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -453,30 +453,12 @@ export default function ContractorQuoteItemPage({
                                     <p className="text-sm">{item.description}</p>
                                 </div>
 
-                                {item.estimatedExecutionTime && (
-                                    <div>
-                                        <p className="text-xs font-medium text-gray-500 mb-1">
-                                            Tiempo estimado de ejecución
-                                        </p>
-                                        <p className="text-sm">
-                                            {item.estimatedExecutionTime} días
-                                        </p>
-                                    </div>
-                                )}
-
-                                <div>
-                                    <p className="text-xs font-medium text-gray-500 mb-1">
-                                        ID del Ítem
-                                    </p>
-                                    <p className="text-sm font-mono">#{item.id}</p>
-                                </div>
-
                                 {work && (
                                     <div>
                                         <p className="text-xs font-medium text-gray-500 mb-1">
                                             Obra asociada
                                         </p>
-                                        <p className="text-sm font-medium">{work.code}</p>
+                                        <p className="text-sm font-bold text-purple-700">{work.code}</p>
                                     </div>
                                 )}
                             </div>
@@ -546,35 +528,18 @@ export default function ContractorQuoteItemPage({
                         )}
 
                         {/* Fechas */}
-                        <div className="border rounded-lg overflow-hidden">
-                            <div className="bg-gray-100 dark:bg-gray-800 px-4 py-3">
-                                <h3 className="font-semibold text-sm">Fechas</h3>
+                        <div className="border rounded-lg overflow-hidden border-purple-100 shadow-sm">
+                            <div className="bg-purple-50 px-4 py-3">
+                                <h3 className="font-bold text-sm text-purple-800">Fecha de Asignación</h3>
                             </div>
-                            <div className="p-4 space-y-3">
-                                <div>
-                                    <p className="text-xs font-medium text-gray-500 mb-1">
-                                        Creado
-                                    </p>
-                                    <p className="text-sm">
-                                        {new Date(item.createdAt).toLocaleDateString("es-CO", {
-                                            year: "numeric",
-                                            month: "long",
-                                            day: "numeric",
-                                        })}
-                                    </p>
-                                </div>
-                                <div>
-                                    <p className="text-xs font-medium text-gray-500 mb-1">
-                                        Última actualización
-                                    </p>
-                                    <p className="text-sm">
-                                        {new Date(item.updatedAt).toLocaleDateString("es-CO", {
-                                            year: "numeric",
-                                            month: "long",
-                                            day: "numeric",
-                                        })}
-                                    </p>
-                                </div>
+                            <div className="p-4">
+                                <p className="text-sm font-medium">
+                                    {new Date(item.createdAt).toLocaleDateString("es-CO", {
+                                        year: "numeric",
+                                        month: "long",
+                                        day: "numeric",
+                                    })}
+                                </p>
                             </div>
                         </div>
                     </div>
