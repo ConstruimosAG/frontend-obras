@@ -22,6 +22,7 @@ import {
   CheckCircle2,
   DollarSign,
   Loader2,
+  Save,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -56,6 +57,7 @@ import { useItems } from "@/hooks/items/useItems";
 import { toast } from "sonner";
 import type { Item, Work } from "@/lib/types";
 import { useUsers } from "@/hooks/users/useUsers";
+import { useQuoteItems } from "@/hooks/items/useQuoteItems";
 
 interface ItemsTableProps {
   work: Work;
@@ -95,6 +97,11 @@ export function ItemsTable({
   const { users, currentUser } = useUsers();
   const contractors = users.filter((u) => u.role === "contractor");
 
+  // Estados masivos
+  const [isBulkEditing, setIsBulkEditing] = useState(false);
+  const [bulkEdits, setBulkEdits] = useState<Record<number, { materialCost: number; managementPercentage: number }>>({});
+  const [savingBulk, setSavingBulk] = useState(false);
+
   // Estados para validación PDF
   const [quoteWork, setQuoteWork] = useState<any>(null);
   const [pdfReady, setPdfReady] = useState(false);
@@ -111,8 +118,9 @@ export function ItemsTable({
     paymentTerms: quoteWork?.subtotal > 10000000 ? "50% ANTICIPO, 50% CONTRA ENTREGA" : "CONTRA ENTREGA",
   });
 
-  const { items, submitting: hookSubmitting, createItem, updateItem, toggleActive, deleteItem } =
+  const { items, submitting: hookSubmitting, createItem, updateItem, toggleActive, deleteItem, fetchItems } =
     useItems(work.id);
+  const { updateQuoteItem } = useQuoteItems();
 
   const [localSubmitting, setLocalSubmitting] = useState(false);
   const submitting = hookSubmitting || localSubmitting;
@@ -305,6 +313,62 @@ export function ItemsTable({
 
   const hasFinishedQuotation = (item: Item) => {
     return item.quoteItems?.some((quote: any) => quote.quoteWorkId !== null);
+  };
+
+  const handleBulkSave = async () => {
+    const quoteIds = Object.keys(bulkEdits);
+    if (quoteIds.length === 0) {
+      setIsBulkEditing(false);
+      return;
+    }
+
+    // Validación previa
+    for (const qIdStr of quoteIds) {
+      const edits = bulkEdits[Number(qIdStr)];
+      if (edits.managementPercentage <= 0 || edits.managementPercentage > 100) {
+        toast.error("El porcentaje AG debe ser mayor a 0 y máximo 100");
+        return;
+      }
+    }
+
+    setSavingBulk(true);
+    try {
+      for (const qIdStr of quoteIds) {
+        const qId = Number(qIdStr);
+        const edits = bulkEdits[qId];
+
+        // Buscar la cotización original para obtener el subtotal
+        const originalQuote = items
+          .flatMap(i => i.quoteItems || [])
+          .find((q: any) => q.id === qId);
+
+        if (!originalQuote) continue;
+
+        const subtotal = Number(originalQuote.subtotal || 0);
+        const materialCost = Number(edits.materialCost || 0);
+        const agPercentage = Number(edits.managementPercentage || 0);
+
+        const totalContractor = subtotal + materialCost;
+        const agValue = Math.round(totalContractor * (agPercentage / 100));
+        const totalContractorWithAG = totalContractor + agValue;
+
+        await updateQuoteItem(qId, {
+          materialCost,
+          managementPercentage: agPercentage,
+          agValue,
+          totalContractor: totalContractorWithAG,
+        });
+      }
+      toast.success("Cambios masivos guardados correctamente.");
+      setIsBulkEditing(false);
+      setBulkEdits({});
+      fetchItems(); // Recargar la tabla
+    } catch (error) {
+      console.error(error);
+      toast.error("Ocurrió un error al guardar algunos cambios masivos.");
+    } finally {
+      setSavingBulk(false);
+    }
   };
 
   const handleDeactivateQuote = (item: Item) => {
@@ -790,7 +854,7 @@ export function ItemsTable({
         <div className="relative w-full sm:w-96">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Buscar por descripción o personal..."
+            placeholder="Buscar por descripción..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="pl-9"
@@ -834,13 +898,52 @@ export function ItemsTable({
           )}
 
           {management && (
-            <Button
-              onClick={() => router.push(`/${path}/works/${work.id}/summary`)}
-              className="flex-1 sm:flex-none bg-blue-600 hover:bg-blue-700"
-            >
-              <FileText className="h-4 w-4 mr-1" />
-              Resumen
-            </Button>
+            <div className="flex gap-2">
+              {!isBulkEditing ? (
+                <>
+                  <Button
+                    onClick={() => setIsBulkEditing(true)}
+                    className="flex-1 sm:flex-none bg-orange-500 hover:bg-orange-600"
+                  >
+                    <Pencil className="h-4 w-4 mr-1" />
+                    Editar
+                  </Button>
+                  <Button
+                    onClick={() => router.push(`/${path}/works/${work.id}/summary`)}
+                    className="flex-1 sm:flex-none bg-blue-600 hover:bg-blue-700"
+                  >
+                    <FileText className="h-4 w-4 mr-1" />
+                    Resumen
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <Button
+                    onClick={handleBulkSave}
+                    disabled={savingBulk}
+                    className="flex-1 sm:flex-none bg-green-600 hover:bg-green-700"
+                  >
+                    {savingBulk ? (
+                      <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                    ) : (
+                      <Save className="h-4 w-4 mr-1" />
+                    )}
+                    Guardar Cambios
+                  </Button>
+                  <Button
+                    onClick={() => {
+                      setIsBulkEditing(false);
+                      setBulkEdits({});
+                    }}
+                    variant="outline"
+                    className="flex-1 sm:flex-none"
+                  >
+                    <X className="h-4 w-4 mr-1" />
+                    Cancelar
+                  </Button>
+                </>
+              )}
+            </div>
           )}
           {!management && (
             <div className="flex gap-2 w-full sm:w-auto">
@@ -1001,29 +1104,94 @@ export function ItemsTable({
                                       {management && (
                                         <>
                                           <TableCell className="text-sm border border-border">
-                                            {displayQuote.materialCost != null ? `$${Number(displayQuote.materialCost).toLocaleString()}` : " "}
+                                            {isBulkEditing && finalizedQuote ? (
+                                              <div className="relative">
+                                                <span className="absolute left-1 top-1/2 -translate-y-1/2 text-muted-foreground text-[10px]">$</span>
+                                                <Input
+                                                  className="h-7 text-xs pl-3 w-24"
+                                                  type="text"
+                                                  value={(() => {
+                                                    const val = bulkEdits[finalizedQuote.id]?.materialCost ?? Number(finalizedQuote.materialCost || 0);
+                                                    return val > 0 ? val.toLocaleString("es-CO") : "";
+                                                  })()}
+                                                  onChange={(e) => {
+                                                    const rawValue = e.target.value.replace(/\D/g, "");
+                                                    const val = Number(rawValue) || 0;
+                                                    setBulkEdits(prev => ({
+                                                      ...prev,
+                                                      [finalizedQuote.id]: {
+                                                        managementPercentage: bulkEdits[finalizedQuote.id]?.managementPercentage ?? Number(finalizedQuote.managementPercentage || 0),
+                                                        materialCost: val
+                                                      }
+                                                    }));
+                                                  }}
+                                                />
+                                              </div>
+                                            ) : (
+                                              displayQuote.materialCost != null ? `$${Number(displayQuote.materialCost).toLocaleString()}` : " "
+                                            )}
                                           </TableCell>
                                           <TableCell className="text-sm border border-border">
-                                            {displayQuote.managementPercentage != null ? `${displayQuote.managementPercentage}%` : " "}
+                                            {isBulkEditing && finalizedQuote ? (
+                                              <div className="relative">
+                                                <Input
+                                                  className="h-7 text-xs w-16"
+                                                  type="number"
+                                                  min="0.01"
+                                                  max="100"
+                                                  value={bulkEdits[finalizedQuote.id]?.managementPercentage ?? Number(finalizedQuote.managementPercentage || 0)}
+                                                  onChange={(e) => {
+                                                    const val = Number(e.target.value);
+                                                    if (val > 100) return;
+                                                    setBulkEdits(prev => ({
+                                                      ...prev,
+                                                      [finalizedQuote.id]: {
+                                                        materialCost: bulkEdits[finalizedQuote.id]?.materialCost ?? Number(finalizedQuote.materialCost || 0),
+                                                        managementPercentage: val
+                                                      }
+                                                    }));
+                                                  }}
+                                                />
+                                              </div>
+                                            ) : (
+                                              displayQuote.managementPercentage != null ? `${displayQuote.managementPercentage}%` : " "
+                                            )}
                                           </TableCell>
                                           <TableCell className="text-sm font-medium text-blue-600 border border-border text-center">
-                                            {
-                                              displayQuote.managementPercentage != null && Number(data.measure) > 0
-                                                ? `$${Math.round((Number(data.totalValue) + Number(displayQuote.materialCost || 0) +
-                                                  (Number(displayQuote.agValue || 0))) /
-                                                  Number(data.measure)
-                                                ).toLocaleString()}`
-                                                : ""
-                                            }
+                                            {(() => {
+                                              const currentMaterialCost = isBulkEditing && finalizedQuote
+                                                ? (bulkEdits[finalizedQuote.id]?.materialCost ?? Number(finalizedQuote.materialCost || 0))
+                                                : Number(displayQuote.materialCost || 0);
+
+                                              const currentMgmtPct = isBulkEditing && finalizedQuote
+                                                ? (bulkEdits[finalizedQuote.id]?.managementPercentage ?? Number(finalizedQuote.managementPercentage || 0))
+                                                : Number(displayQuote.managementPercentage || 0);
+
+                                              const currentSubtotal = Number(data.totalValue || 0);
+                                              const currentMeasure = Number(data.measure || 0);
+                                              const currentAgValue = Math.round((currentSubtotal + currentMaterialCost) * (currentMgmtPct / 100));
+                                              return currentMgmtPct != null && currentMgmtPct > 0 && currentMeasure > 0
+                                                ? `$${Math.round((currentSubtotal + currentMaterialCost + currentAgValue) / currentMeasure).toLocaleString()}`
+                                                : "";
+                                            })()}
                                           </TableCell>
                                           <TableCell className="text-sm font-bold text-blue-700 border border-border text-center">
-                                            {
-                                              displayQuote.managementPercentage != null
-                                                ? `$${Math.round((Number(data.totalValue) + Number(displayQuote.materialCost || 0) +
-                                                  (Number(displayQuote.agValue || 0)))
-                                                ).toLocaleString()}`
-                                                : ""
-                                            }
+                                            {(() => {
+                                              const currentMaterialCost = isBulkEditing && finalizedQuote
+                                                ? (bulkEdits[finalizedQuote.id]?.materialCost ?? Number(finalizedQuote.materialCost || 0))
+                                                : Number(displayQuote.materialCost || 0);
+
+                                              const currentMgmtPct = isBulkEditing && finalizedQuote
+                                                ? (bulkEdits[finalizedQuote.id]?.managementPercentage ?? Number(finalizedQuote.managementPercentage || 0))
+                                                : Number(displayQuote.managementPercentage || 0);
+
+                                              const currentSubtotal = Number(data.totalValue || 0);
+                                              const currentAgValue = Math.round((currentSubtotal + currentMaterialCost) * (currentMgmtPct / 100));
+
+                                              return currentMgmtPct != null && currentMgmtPct > 0
+                                                ? `$${Math.round(currentSubtotal + currentMaterialCost + currentAgValue).toLocaleString()}`
+                                                : "";
+                                            })()}
                                           </TableCell>
                                         </>
                                       )}
@@ -1276,26 +1444,128 @@ export function ItemsTable({
                                       <div className="col-span-2 bg-blue-50 dark:bg-blue-900/10 p-2 rounded-md border border-blue-100 dark:border-blue-800 grid grid-cols-2 gap-2">
                                         <div className="flex flex-col">
                                           <span className="text-[9px] text-blue-600 font-bold uppercase">Costo Mat.</span>
-                                          <span className="text-xs">{displayQuote.materialCost != null ? `$${Number(displayQuote.materialCost).toLocaleString()}` : " "}</span>
+                                          {isBulkEditing && finalizedQuote ? (
+                                            <div className="relative mt-0.5">
+                                              <span className="absolute left-1 top-1/2 -translate-y-1/2 text-muted-foreground text-[8px]">$</span>
+                                              <Input
+                                                className="h-6 text-[10px] pl-3 py-0"
+                                                type="text"
+                                                value={(() => {
+                                                  const val = bulkEdits[finalizedQuote.id]?.materialCost ?? Number(finalizedQuote.materialCost || 0);
+                                                  return val > 0 ? val.toLocaleString("es-CO") : "";
+                                                })()}
+                                                onChange={(e) => {
+                                                  const rawValue = e.target.value.replace(/\D/g, "");
+                                                  const val = Number(rawValue) || 0;
+                                                  setBulkEdits((prev) => ({
+                                                    ...prev,
+                                                    [finalizedQuote.id]: {
+                                                      managementPercentage:
+                                                        bulkEdits[finalizedQuote.id]?.managementPercentage ??
+                                                        Number(finalizedQuote.managementPercentage || 0),
+                                                      materialCost: val,
+                                                    },
+                                                  }));
+                                                }}
+                                              />
+                                            </div>
+                                          ) : (
+                                            <span className="text-xs">
+                                              {displayQuote.materialCost != null
+                                                ? `$${Number(displayQuote.materialCost).toLocaleString()}`
+                                                : " "}
+                                            </span>
+                                          )}
                                         </div>
                                         <div className="flex flex-col text-right">
                                           <span className="text-[9px] text-blue-600 font-bold uppercase">% AG</span>
-                                          <span className="text-xs">{displayQuote.managementPercentage != null ? `${displayQuote.managementPercentage}%` : " "}</span>
+                                          {isBulkEditing && finalizedQuote ? (
+                                            <Input
+                                              className="h-6 text-[10px] text-right mt-0.5 py-0"
+                                              type="number"
+                                              min="0.01"
+                                              max="100"
+                                              value={bulkEdits[finalizedQuote.id]?.managementPercentage ?? Number(finalizedQuote.managementPercentage || 0)}
+                                              onChange={(e) => {
+                                                const val = Number(e.target.value);
+                                                if (val > 100) return;
+                                                setBulkEdits((prev) => ({
+                                                  ...prev,
+                                                  [finalizedQuote.id]: {
+                                                    materialCost:
+                                                      bulkEdits[finalizedQuote.id]?.materialCost ??
+                                                      Number(finalizedQuote.materialCost || 0),
+                                                    managementPercentage: val,
+                                                  },
+                                                }));
+                                              }}
+                                            />
+                                          ) : (
+                                            <span className="text-xs">
+                                              {displayQuote.managementPercentage != null
+                                                ? `${displayQuote.managementPercentage}%`
+                                                : " "}
+                                            </span>
+                                          )}
                                         </div>
                                         <div className="flex flex-col">
                                           <span className="text-[9px] text-blue-600 font-bold uppercase">V. Unit. AG</span>
                                           <span className="text-xs font-medium text-blue-600">
-                                            {displayQuote.managementPercentage != null && Number(data.measure) > 0
-                                              ? `$${Math.round((Number(data.totalValue) + Number(displayQuote.materialCost || 0) + (Number(displayQuote.agValue || 0))) / Number(data.measure)).toLocaleString()}`
-                                              : " "}
+                                            {(() => {
+                                              const currentMaterialCost =
+                                                isBulkEditing && finalizedQuote
+                                                  ? bulkEdits[finalizedQuote.id]?.materialCost ??
+                                                  Number(finalizedQuote.materialCost || 0)
+                                                  : Number(displayQuote.materialCost || 0);
+
+                                              const currentMgmtPct =
+                                                isBulkEditing && finalizedQuote
+                                                  ? bulkEdits[finalizedQuote.id]?.managementPercentage ??
+                                                  Number(finalizedQuote.managementPercentage || 0)
+                                                  : Number(displayQuote.managementPercentage || 0);
+
+                                              const currentSubtotal = Number(data.totalValue || 0);
+                                              const currentMeasure = Number(data.measure || 0);
+                                              const currentAgValue = Math.round(
+                                                (currentSubtotal + currentMaterialCost) * (currentMgmtPct / 100)
+                                              );
+
+                                              return currentMgmtPct != null && currentMgmtPct > 0 && currentMeasure > 0
+                                                ? `$${Math.round(
+                                                  (currentSubtotal + currentMaterialCost + currentAgValue) /
+                                                  currentMeasure
+                                                ).toLocaleString()}`
+                                                : " ";
+                                            })()}
                                           </span>
                                         </div>
                                         <div className="flex flex-col text-right">
                                           <span className="text-[9px] text-blue-600 font-bold uppercase">V. Total AG</span>
                                           <span className="text-xs font-bold text-blue-700">
-                                            {displayQuote.agValue != null
-                                              ? `$${Math.round(Number(data.totalValue) + Number(displayQuote.materialCost || 0) + Number(displayQuote.agValue || 0)).toLocaleString()}`
-                                              : " "}
+                                            {(() => {
+                                              const currentMaterialCost =
+                                                isBulkEditing && finalizedQuote
+                                                  ? bulkEdits[finalizedQuote.id]?.materialCost ??
+                                                  Number(finalizedQuote.materialCost || 0)
+                                                  : Number(displayQuote.materialCost || 0);
+
+                                              const currentMgmtPct =
+                                                isBulkEditing && finalizedQuote
+                                                  ? bulkEdits[finalizedQuote.id]?.managementPercentage ??
+                                                  Number(finalizedQuote.managementPercentage || 0)
+                                                  : Number(displayQuote.managementPercentage || 0);
+
+                                              const currentSubtotal = Number(data.totalValue || 0);
+                                              const currentAgValue = Math.round(
+                                                (currentSubtotal + currentMaterialCost) * (currentMgmtPct / 100)
+                                              );
+
+                                              return currentMgmtPct != null && currentMgmtPct > 0
+                                                ? `$${Math.round(
+                                                  currentSubtotal + currentMaterialCost + currentAgValue
+                                                ).toLocaleString()}`
+                                                : " ";
+                                            })()}
                                           </span>
                                         </div>
                                       </div>

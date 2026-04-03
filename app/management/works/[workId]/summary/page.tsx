@@ -492,7 +492,7 @@ export default function WorkSummaryPage({ params }: WorkSummaryPageProps) {
                                             <TableHead className="text-right">V. Unitario (AG)</TableHead>
                                             <TableHead className="text-right">Materiales (AG)</TableHead>
                                             <TableHead className="text-right">V. Total (AG)</TableHead>
-                                            <TableHead className="text-right">Acciones</TableHead>
+                                            {/* <TableHead className="text-right">Acciones</TableHead> */}
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
@@ -509,7 +509,7 @@ export default function WorkSummaryPage({ params }: WorkSummaryPageProps) {
                                             const mainSubquota = subquotas.item_1 || Object.values(subquotas)[0] || {};
 
                                             // Actividad ajustada
-                                            const unitValueAdjusted = Number(mainSubquota.unitValue || 0) * factor;
+                                            const unitValueAdjusted = Math.round((Number(mainSubquota.totalValue || 0) + Number(finalizedQuote?.materialCost || 0)) * factor / Number(mainSubquota.measure));
                                             const activityTotalAdjusted = Number(mainSubquota.totalValue || 0) * factor;
 
                                             // Materiales (SIN AG %)
@@ -525,7 +525,7 @@ export default function WorkSummaryPage({ params }: WorkSummaryPageProps) {
                                                         {item.description}
                                                     </TableCell>
                                                     <TableCell>{mainSubquota.unit || "UND"}</TableCell>
-                                                    <TableCell>{(Number(mainSubquota.measure || 0)).toLocaleString("es-CO")}</TableCell>
+                                                    <TableCell className="text-right">{(Number(mainSubquota.measure || 0)).toLocaleString("es-CO")}</TableCell>
                                                     <TableCell className="text-right">
                                                         ${formatCurrency(unitValueAdjusted)}
                                                     </TableCell>
@@ -535,7 +535,7 @@ export default function WorkSummaryPage({ params }: WorkSummaryPageProps) {
                                                     <TableCell className="text-right font-semibold">
                                                         ${formatCurrency(activityTotalAdjusted + (materialCostRaw * factor))}
                                                     </TableCell>
-                                                    <TableCell className="text-right">
+                                                    {/* <TableCell className="text-right">
                                                         <Button
                                                             variant="outline"
                                                             size="sm"
@@ -546,7 +546,7 @@ export default function WorkSummaryPage({ params }: WorkSummaryPageProps) {
                                                             <Pencil className="h-3.5 w-3.5 mr-1" />
                                                             Editar
                                                         </Button>
-                                                    </TableCell>
+                                                    </TableCell> */}
                                                 </TableRow>
                                             );
                                         })}

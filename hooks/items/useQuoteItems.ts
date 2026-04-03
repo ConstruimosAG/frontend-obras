@@ -9,6 +9,7 @@ export type QuoteItemPayload = {
   materials?: any; // JSON
   materialCost: number | null;
   subtotal: number;
+  managementPercentage: number | null;
   administrationPercentage: number | null;
   contingenciesPercentage?: number | null;
   profitPercentage?: number | null;
