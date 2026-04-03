@@ -104,14 +104,19 @@ export default function WorkSummaryPage({ params }: WorkSummaryPageProps) {
         finishedItems.forEach((item: any) => {
             const finalizedQuote = item.quoteItems?.find((q: any) => q.quoteWorkId !== null);
             if (finalizedQuote) {
-                const itemTotal =
-                    Number(finalizedQuote.subtotal || 0) +
-                    Number(finalizedQuote.materialCost || 0) +
-                    Number(finalizedQuote.agValue || 0);
-                subtotal += itemTotal;
+                const subquotas = finalizedQuote?.subquotations || {};
+                const mainSubquota = subquotas.item_1 || Object.values(subquotas)[0] || {};
+
+                const agPercentage = Number(finalizedQuote?.managementPercentage || 0);
+                const factor = 1 + (agPercentage / 100);
+
+                const activityTotalAdjusted = Number(mainSubquota.totalValue || 0) * factor;
+                const materialCostAdjusted = Number(finalizedQuote?.materialCost || 0) * factor;
+
+                subtotal += (activityTotalAdjusted + materialCostAdjusted);
             }
         });
-        return subtotal;
+        return Math.round(subtotal);
     };
 
     // Calcular subtotal
@@ -120,13 +125,27 @@ export default function WorkSummaryPage({ params }: WorkSummaryPageProps) {
         finishedItems.forEach((item: any) => {
             const finalizedQuote = item.quoteItems?.find((q: any) => q.quoteWorkId !== null);
             if (finalizedQuote) {
-                const itemTotal =
-                    Number(finalizedQuote.subtotal || 0) +
-                    Number(finalizedQuote.materialCost || 0)
-                subtotalUtility += itemTotal;
+                const subquotas = finalizedQuote?.subquotations || {};
+                const mainSubquota = subquotas.item_1 || Object.values(subquotas)[0] || {};
+
+                const activityTotalRaw = Number(mainSubquota.totalValue || 0);
+                const materialCostRaw = Number(finalizedQuote.materialCost || 0);
+
+                subtotalUtility += (activityTotalRaw + materialCostRaw);
             }
         });
-        return subtotalUtility;
+        return Math.round(subtotalUtility);
+    };
+
+    const getAIUDetails = () => {
+        const subtotal = calculateSubtotal();
+        const admin = (administrationPercentage / 100) * subtotal;
+        const contingencies = (contingenciesPercentage / 100) * subtotal;
+        const directCost = subtotal + admin + contingencies;
+        const profit = (profitPercentage / 100) * directCost;
+        const ivaOnProfit = profit * 0.19;
+        const total = directCost + profit + ivaOnProfit;
+        return { subtotal, admin, contingencies, directCost, profit, ivaOnProfit, total };
     };
 
     // Calcular total según IVA o AIU
@@ -137,16 +156,7 @@ export default function WorkSummaryPage({ params }: WorkSummaryPageProps) {
             // IVA simple
             return Math.round(subtotal * 1.19);
         } else if (useAIU) {
-            // AIU
-            const admin = administrationPercentage / 100;
-            const contingencies = contingenciesPercentage / 100;
-            const profit = profitPercentage / 100;
-
-            const aiuValue = subtotal * (admin + contingencies);
-            const profitValue = (subtotal + aiuValue) * profit;
-            const ivaOnProfit = profitValue * 0.19;
-
-            return Math.round(subtotal + aiuValue + profitValue + ivaOnProfit);
+            return Math.round(getAIUDetails().total);
         }
 
         return subtotal;
@@ -165,16 +175,8 @@ export default function WorkSummaryPage({ params }: WorkSummaryPageProps) {
         if (useIVA) {
             return Math.round(total * 0.19);
         } else if (useAIU) {
-            // AIU
-            const admin = administrationPercentage / 100;
-            const contingencies = contingenciesPercentage / 100;
-            const profit = profitPercentage / 100;
-
-            const aiuValue = total * (admin + contingencies);
-            const profitValue = (total + aiuValue) * profit;
-            const ivaOnProfit = profitValue * 0.19;
-
-            return Math.round(aiuValue + profitValue + ivaOnProfit);
+            const { admin, contingencies, profit, ivaOnProfit } = getAIUDetails();
+            return Math.round(admin + contingencies + profit + ivaOnProfit);
         }
 
         return 0;
@@ -331,11 +333,18 @@ export default function WorkSummaryPage({ params }: WorkSummaryPageProps) {
                             </CardTitle>
                         </CardHeader>
                         <CardContent>
-                            <div className="flex items-center gap-2">
-                                <TrendingUp className="h-5 w-5 text-green-500" />
-                                <p className="text-3xl font-bold text-green-600">
-                                    ${formatCurrency(calculateProfit())}
-                                </p>
+                            <div className="flex flex-col gap-1">
+                                <div className="flex items-center gap-2">
+                                    <TrendingUp className="h-5 w-5 text-green-500" />
+                                    <p className="text-3xl font-bold text-green-600">
+                                        ${formatCurrency(calculateProfit())}
+                                    </p>
+                                </div>
+                                {calculateSubtotal() > 0 && (
+                                    <p className="text-sm font-medium text-muted-foreground">
+                                        {((calculateProfit() / calculateSubtotal()) * 100).toFixed(2)}% del subtotal
+                                    </p>
+                                )}
                             </div>
                         </CardContent>
                     </Card>
@@ -503,11 +512,11 @@ export default function WorkSummaryPage({ params }: WorkSummaryPageProps) {
                                             const unitValueAdjusted = Number(mainSubquota.unitValue || 0) * factor;
                                             const activityTotalAdjusted = Number(mainSubquota.totalValue || 0) * factor;
 
-                                            // Materiales ajustados
-                                            const materialCostAdjusted = Number(finalizedQuote?.materialCost || 0) * factor;
+                                            // Materiales (SIN AG %)
+                                            const materialCostRaw = Number(finalizedQuote?.materialCost || 0);
 
-                                            // Total final (Actividad + Materiales)
-                                            const finalTotal = activityTotalAdjusted + materialCostAdjusted;
+                                            // Total final (Actividad con AG + Materiales sin AG)
+                                            const finalTotal = activityTotalAdjusted + materialCostRaw;
 
                                             return (
                                                 <TableRow key={item.id}>
@@ -516,15 +525,15 @@ export default function WorkSummaryPage({ params }: WorkSummaryPageProps) {
                                                         {item.description}
                                                     </TableCell>
                                                     <TableCell>{mainSubquota.unit || "UND"}</TableCell>
-                                                    <TableCell className="text-right">{mainSubquota.measure || 0}</TableCell>
+                                                    <TableCell>{(Number(mainSubquota.measure || 0)).toLocaleString("es-CO")}</TableCell>
                                                     <TableCell className="text-right">
                                                         ${formatCurrency(unitValueAdjusted)}
                                                     </TableCell>
                                                     <TableCell className="text-right">
-                                                        ${formatCurrency(materialCostAdjusted)}
+                                                        ${formatCurrency(materialCostRaw)}
                                                     </TableCell>
                                                     <TableCell className="text-right font-semibold">
-                                                        ${formatCurrency(finalTotal)}
+                                                        ${formatCurrency(activityTotalAdjusted + (materialCostRaw * factor))}
                                                     </TableCell>
                                                     <TableCell className="text-right">
                                                         <Button
@@ -629,25 +638,55 @@ export default function WorkSummaryPage({ params }: WorkSummaryPageProps) {
 
                         <Separator />
 
-                        <div className="space-y-2">
-                            <div className="flex justify-between text-sm">
-                                <span className="text-muted-foreground">Subtotal:</span>
-                                <span className="font-medium">${formatCurrency(calculateSubtotal())}</span>
+                        <div className="space-y-3 pt-4 border-t">
+                            <div className="flex justify-between items-center text-sm sm:text-base border-b border-dashed pb-2">
+                                <span className="text-foreground font-bold uppercase tracking-tight">Subtotal Costo Directo:</span>
+                                <span className="font-bold text-blue-600">${formatCurrency(calculateSubtotal())}</span>
                             </div>
-                            {(useIVA || useAIU) && (
-                                <div className="flex justify-between text-sm">
-                                    <span className="text-muted-foreground">
-                                        {useIVA ? "IVA (19%):" : "AIU + IVA:"}
-                                    </span>
-                                    <span className="font-medium text-blue-600">
+
+                            {useIVA && (
+                                <div className="flex justify-between items-center text-sm">
+                                    <span className="text-muted-foreground italic">IVA (19% s/ Subtotal):</span>
+                                    <span className="font-semibold text-blue-500">
                                         +${formatCurrency(calculateTax())}
                                     </span>
                                 </div>
                             )}
-                            <Separator />
-                            <div className="flex justify-between font-bold text-lg">
-                                <span>Total:</span>
-                                <span className="text-green-600">${formatCurrency(calculateTotal())}</span>
+
+                            {useAIU && (
+                                <div className="space-y-2">
+                                    <div className="flex justify-between items-center text-xs opacity-80">
+                                        <span className="text-muted-foreground uppercase tracking-wider">Administración ({administrationPercentage}%):</span>
+                                        <span className="font-medium">+${formatCurrency(getAIUDetails().admin)}</span>
+                                    </div>
+                                    <div className="flex justify-between items-center text-xs opacity-80">
+                                        <span className="text-muted-foreground uppercase tracking-wider">Imprevistos ({contingenciesPercentage}%):</span>
+                                        <span className="font-medium">+${formatCurrency(getAIUDetails().contingencies)}</span>
+                                    </div>
+
+                                    <div className="flex justify-between items-center text-sm bg-muted/20 py-1.5 rounded">
+                                        <span className="text-foreground font-bold italic">Total Costo Directo:</span>
+                                        <span className="font-bold">${formatCurrency(getAIUDetails().directCost)}</span>
+                                    </div>
+
+                                    <div className="flex justify-between items-center text-xs opacity-80">
+                                        <span className="text-muted-foreground uppercase tracking-wider">Utilidad ({profitPercentage}%):</span>
+                                        <span className="font-medium">+${formatCurrency(getAIUDetails().profit)}</span>
+                                    </div>
+                                    <div className="flex justify-between items-center text-xs opacity-80">
+                                        <span className="text-muted-foreground uppercase tracking-wider">IVA s/ Utilidad (19%):</span>
+                                        <span className="font-medium">+${formatCurrency(getAIUDetails().ivaOnProfit)}</span>
+                                    </div>
+                                </div>
+                            )}
+
+                            <div className="pt-4 mt-2 border-t-2 border-green-500/20">
+                                <div className="flex justify-between items-center bg-green-500/5 p-4 rounded-xl border border-green-500/20 group hover:border-green-500 transition-all">
+                                    <span className="text-base sm:text-lg font-bold uppercase tracking-tighter">TOTAL OBRA:</span>
+                                    <span className="text-2xl sm:text-3xl font-bold text-green-600 sm:group-hover:scale-105 transition-transform duration-300">
+                                        ${formatCurrency(calculateTotal())}
+                                    </span>
+                                </div>
                             </div>
                         </div>
 
