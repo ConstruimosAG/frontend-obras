@@ -134,10 +134,11 @@ export function ItemsTable({
     const validatePDF = async () => {
       try {
         const baseUrl = process.env.NEXT_PUBLIC_BACKEND_URL;
-        const finishedItems = items.filter((item: any) =>
+        const activeItems = items.filter((item: any) => item.active);
+        const finishedItems = activeItems.filter((item: any) =>
           item.quoteItems?.some((q: any) => q.quoteWorkId !== null)
         );
-        const pendingCount = items.length - finishedItems.length;
+        const pendingCount = activeItems.length - finishedItems.length;
 
         const status: string[] = [];
         let ready = true;
@@ -181,7 +182,7 @@ export function ItemsTable({
             if (finishedItems.length > 0) {
               let calculatedSubtotal = 0;
               finishedItems.forEach((item: any) => {
-                const quote = item.quoteItems?.find((q: any) => q.quoteWorkId !== null);
+                const quote = item.quoteItems?.find((q: any) => q.quoteWorkId !== null && item.active);
                 if (quote) {
                   calculatedSubtotal +=
                     Number(quote.subtotal || 0) +
@@ -778,8 +779,34 @@ export function ItemsTable({
 
   const handleDeleteConfirm = async () => {
     if (selectedItem) {
+      const isDeactivating = selectedItem.active;
+
+      if (isDeactivating) {
+        // Si se está desactivando, verificar si tiene una cotización en QuoteWork
+        const finalizedQuote = selectedItem.quoteItems?.find(
+          (q: any) => q.quoteWorkId !== null
+        );
+
+        if (finalizedQuote) {
+          try {
+            const baseUrl = process.env.NEXT_PUBLIC_BACKEND_URL;
+            // Desconectar del QuoteWork
+            await fetch(`${baseUrl}/api/quote-items/${finalizedQuote.id}`, {
+              method: "PUT",
+              credentials: "include",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ quoteWorkId: null }),
+            });
+          } catch (error) {
+            console.error("Error desconectando cotización al desactivar ítem:", error);
+          }
+        }
+      }
+
       await toggleActive(selectedItem.id, !selectedItem.active);
       setDeleteModalOpen(false);
+      // Recargar para sincronizar PDF
+      window.location.reload();
     }
   };
 
@@ -794,6 +821,7 @@ export function ItemsTable({
         await deleteItem(selectedItem.id);
         setPermanentDeleteModalOpen(false);
         setSelectedItem(null);
+        window.location.reload();
       } catch (error) {
         // Error handled by hook
       }
@@ -1099,7 +1127,7 @@ export function ItemsTable({
                                         const contPct = Number(displayQuote.contingenciesPercentage || 0);
                                         const profitPct = Number(displayQuote.profitPercentage || 0);
                                         const isAIU = adminPct > 0 || contPct > 0 || profitPct > 0;
-                                        
+
                                         let totalValueInclTaxes = subtotal;
                                         if (isAIU) {
                                           const aVal = subtotal * (adminPct / 100);
@@ -1114,7 +1142,7 @@ export function ItemsTable({
 
                                         const measure = Number(data.measure || 0);
                                         const unitValueInclTaxes = measure > 0 ? (totalValueInclTaxes / measure) : Number(data.unitValue || 0);
-                                        
+
                                         return (
                                           <>
                                             <TableCell className="text-sm font-medium border border-border">
@@ -1299,7 +1327,7 @@ export function ItemsTable({
                                   >
                                     {item.active ? "Activo" : "Inactivo"}
                                   </Badge>
-                                  {management && isFinished && (
+                                  {!coordinator && isFinished && (
                                     <Badge className="bg-blue-500 hover:bg-blue-600 border-none px-1.5 h-5 text-[10px]">
                                       Finalizado
                                     </Badge>
@@ -1490,7 +1518,7 @@ export function ItemsTable({
                                         const contPct = Number(displayQuote.contingenciesPercentage || 0);
                                         const profitPct = Number(displayQuote.profitPercentage || 0);
                                         const isAIU = adminPct > 0 || contPct > 0 || profitPct > 0;
-                                        
+
                                         let totalValueInclTaxes = subtotal;
                                         if (isAIU) {
                                           const aVal = subtotal * (adminPct / 100);
@@ -1505,7 +1533,7 @@ export function ItemsTable({
 
                                         const measure = Number(data.measure || 0);
                                         const unitValueInclTaxes = measure > 0 ? (totalValueInclTaxes / measure) : Number(data.unitValue || 0);
-                                        
+
                                         return (
                                           <>
                                             <div className="flex flex-col text-center">
