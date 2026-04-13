@@ -6,6 +6,7 @@ import { useContractorItems } from "@/hooks/items/useContractorItems";
 import { useUsers } from "@/hooks/users/useUsers";
 import { useWorks } from "@/hooks/work/useWorks";
 import { QuoteItemForm } from "@/components/contractor/quote-item-form";
+import { Label } from "@/components/ui/label";
 
 interface ContractorQuoteItemPageProps {
     params: Promise<{ itemId: string }>;
@@ -437,125 +438,74 @@ export default function ContractorQuoteItemPage({
                     Cotizar Ítem
                 </h1>
 
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    {/* Detalles del Item - Sidebar */}
-                    <div className="lg:col-span-1 space-y-4">
-                        {/* Información básica */}
-                        <div className="border rounded-lg overflow-hidden">
-                            <div className="bg-purple-500 text-white px-4 py-3">
-                                <h2 className="font-semibold text-sm">Información del Ítem</h2>
-                            </div>
-                            <div className="p-4 space-y-4">
+                <div className="max-w-2xl mx-auto space-y-8">
+                    {/* Sección 1: Información del Ítem */}
+                    <section className="space-y-4">
+                        <div className="flex items-center gap-2 border-b border-purple-100 pb-2">
+                            <h2 className="text-lg font-bold text-gray-800">1. Detalles del Ítem</h2>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                            <div className="space-y-3">
                                 <div>
-                                    <p className="text-xs font-medium text-gray-500 mb-1">
-                                        Descripción
-                                    </p>
-                                    <p className="text-sm">{item.description}</p>
+                                    <Label className="text-[10px] font-bold text-purple-400 uppercase tracking-widest">Obra</Label>
+                                    <p className="font-medium text-gray-900">{work.code}</p>
                                 </div>
-
-                                {work && (
+                                <div>
+                                    <Label className="text-[10px] font-bold text-purple-400 uppercase tracking-widest">Descripción</Label>
+                                    <p className="text-gray-600 leading-relaxed">{item.description}</p>
+                                </div>
+                            </div>
+                            <div className="space-y-3 md:border-l md:pl-6 border-gray-100">
+                                <div className="flex justify-between">
                                     <div>
-                                        <p className="text-xs font-medium text-gray-500 mb-1">
-                                            Obra asociada
+                                        <Label className="text-[10px] font-bold text-purple-400 uppercase tracking-widest">Asignación</Label>
+                                        <p className="text-gray-900 font-medium">
+                                            {new Date(item.createdAt).toLocaleDateString("es-CO", {
+                                                year: "numeric",
+                                                month: "long",
+                                                day: "numeric",
+                                            })}
                                         </p>
-                                        <p className="text-sm font-bold text-purple-700">{work.code}</p>
+                                    </div>
+                                    {(item.estimatedExecutionTime || item.extras?.estimatedTime) && (
+                                        <div className="text-right">
+                                            <Label className="text-[10px] font-bold text-orange-400 uppercase tracking-widest">Tiempo Estimado</Label>
+                                            <p className="font-bold text-orange-600">
+                                                {item.estimatedExecutionTime || item.extras?.estimatedTime} {item.estimatedExecutionTime ? 'días' : ''}
+                                            </p>
+                                        </div>
+                                    )}
+                                </div>
+                                {item.personnelRequired && Object.keys(item.personnelRequired).length > 0 && (
+                                    <div>
+                                        <Label className="text-[10px] font-bold text-purple-400 uppercase tracking-widest">Personal Requerido</Label>
+                                        <div className="flex flex-wrap gap-1.5 mt-1">
+                                            {Object.entries(item.personnelRequired).map(([key, value]) => (
+                                                <span key={key} className="inline-flex items-center px-2 py-0.5 rounded bg-gray-50 border border-gray-100 text-[10px] font-medium text-gray-600 capitalize">
+                                                    {key.replace(/([A-Z])/g, " $1").trim()}: {String(value)}
+                                                </span>
+                                            ))}
+                                        </div>
                                     </div>
                                 )}
                             </div>
                         </div>
+                    </section>
 
-                        {/* Personal requerido */}
-                        {item.personnelRequired &&
-                            Object.keys(item.personnelRequired).length > 0 && (
-                                <div className="border rounded-lg overflow-hidden">
-                                    <div className="bg-gray-100 dark:bg-gray-800 px-4 py-3">
-                                        <h3 className="font-semibold text-sm">
-                                            Personal Requerido
-                                        </h3>
-                                    </div>
-                                    <div className="p-4">
-                                        <div className="space-y-2">
-                                            {Object.entries(item.personnelRequired).map(
-                                                ([key, value]) => (
-                                                    <div
-                                                        key={key}
-                                                        className="flex justify-between items-center text-sm"
-                                                    >
-                                                        <span className="text-gray-600 dark:text-gray-400 capitalize">
-                                                            {key.replace(/([A-Z])/g, " $1").trim()}
-                                                        </span>
-                                                        <span className="font-medium">
-                                                            {typeof value === "object"
-                                                                ? JSON.stringify(value)
-                                                                : String(value)}
-                                                        </span>
-                                                    </div>
-                                                )
-                                            )}
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
-
-                        {/* Extras */}
-                        {item.extras && Object.keys(item.extras).length > 0 && (
-                            <div className="border rounded-lg overflow-hidden">
-                                <div className="bg-gray-100 dark:bg-gray-800 px-4 py-3">
-                                    <h3 className="font-semibold text-sm">
-                                        Información Adicional
-                                    </h3>
-                                </div>
-                                <div className="p-4">
-                                    <div className="space-y-2">
-                                        {Object.entries(item.extras).map(([key, value]) => (
-                                            <div
-                                                key={key}
-                                                className="flex justify-between items-center text-sm"
-                                            >
-                                                <span className="text-gray-600 dark:text-gray-400 capitalize">
-                                                    {key.replace(/([A-Z])/g, " $1").trim()}
-                                                </span>
-                                                <span className="font-medium">
-                                                    {typeof value === "object"
-                                                        ? JSON.stringify(value)
-                                                        : String(value)}
-                                                </span>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                            </div>
-                        )}
-
-                        {/* Fechas */}
-                        <div className="border rounded-lg overflow-hidden border-purple-100 shadow-sm">
-                            <div className="bg-purple-50 px-4 py-3">
-                                <h3 className="font-bold text-sm text-purple-800">Fecha de Asignación</h3>
-                            </div>
-                            <div className="p-4">
-                                <p className="text-sm font-medium">
-                                    {new Date(item.createdAt).toLocaleDateString("es-CO", {
-                                        year: "numeric",
-                                        month: "long",
-                                        day: "numeric",
-                                    })}
-                                </p>
-                            </div>
+                    {/* Sección 2: Cotización, Materiales e Impuestos */}
+                    <section className="space-y-4">
+                        <div className="flex items-center gap-2 border-b border-purple-100 pb-2">
+                            <h2 className="text-lg font-bold text-gray-800">2. Tu Propuesta</h2>
                         </div>
-                    </div>
-
-                    {/* Formulario de Cotización */}
-                    <div className="lg:col-span-2">
                         <QuoteItemForm
                             item={item}
                             currentUser={currentUser}
-                            ivaPercent={19} // o pásalo desde getConfigService si deberías
+                            ivaPercent={19}
                             onSaved={() => {
-                                // opcionalmente redirigir o refrescar
                                 router.push("/contractor");
                             }}
                         />
-                    </div>
+                    </section>
                 </div>
             </div>
         </main>

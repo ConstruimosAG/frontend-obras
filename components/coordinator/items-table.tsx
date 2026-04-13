@@ -1058,8 +1058,8 @@ export function ItemsTable({
                           const isFinished = hasFinishedQuotation(item);
                           return (
                             <TableRow key={item.id} className="hover:bg-muted/30">
-                              <TableCell className="border border-border align-middle py-2 min-w-[120px] max-w-[200px]">
-                                <p className="font-medium text-xs break-words whitespace-normal">{item.description}</p>
+                              <TableCell className="border border-border align-middle py-2 min-w-[200px]">
+                                <p className="font-medium text-xs break-words whitespace-normal text-left">{item.description}</p>
                               </TableCell>
                               <TableCell className="border border-border align-middle py-2 min-w-[100px]">
                                 <span className="text-xs font-semibold text-purple-700 dark:text-purple-400 break-words whitespace-normal">
@@ -1077,6 +1077,7 @@ export function ItemsTable({
                                 const hasAnyQuote = (item.quoteItems?.length ?? 0) > 0;
 
                                 if (displayQuote) {
+                                  console.log(displayQuote);
                                   let subq: any = displayQuote.subquotations;
                                   if (typeof subq === "string") {
                                     try { subq = JSON.parse(subq); } catch (e) { subq = {}; }
@@ -1092,14 +1093,41 @@ export function ItemsTable({
                                     <>
                                       <TableCell className="text-sm border border-border">{data.unit || "UND"}</TableCell>
                                       <TableCell className="text-sm border border-border">{Number(data.measure || 0).toLocaleString("es-CO")}</TableCell>
-                                      <TableCell className="text-sm font-medium border border-border">
-                                        ${Number(data.unitValue || 0).toLocaleString()}
-                                      </TableCell>
-                                      <TableCell className="text-sm font-bold text-purple-600 border border-border">
-                                        ${Number(data.totalValue || 0).toLocaleString()}
-                                      </TableCell>
-                                      <TableCell className="text-sm max-w-[120px] border border-border">
-                                        <span className="line-clamp-2 text-xs">{materialsText}</span>
+                                      {(() => {
+                                        const subtotal = Number(data.totalValue || 0);
+                                        const adminPct = Number(displayQuote.administrationPercentage || 0);
+                                        const contPct = Number(displayQuote.contingenciesPercentage || 0);
+                                        const profitPct = Number(displayQuote.profitPercentage || 0);
+                                        const isAIU = adminPct > 0 || contPct > 0 || profitPct > 0;
+                                        
+                                        let totalValueInclTaxes = subtotal;
+                                        if (isAIU) {
+                                          const aVal = subtotal * (adminPct / 100);
+                                          const iVal = subtotal * (contPct / 100);
+                                          const subAI = subtotal + aVal + iVal;
+                                          const uVal = subAI * (profitPct / 100);
+                                          const vatOnU = displayQuote.vat ? (uVal * 0.19) : 0;
+                                          totalValueInclTaxes = subtotal + aVal + iVal + uVal + vatOnU;
+                                        } else if (displayQuote.vat && !displayQuote.ConstruimosAG) {
+                                          totalValueInclTaxes = subtotal * 1.19;
+                                        }
+
+                                        const measure = Number(data.measure || 0);
+                                        const unitValueInclTaxes = measure > 0 ? (totalValueInclTaxes / measure) : Number(data.unitValue || 0);
+                                        
+                                        return (
+                                          <>
+                                            <TableCell className="text-sm font-medium border border-border">
+                                              ${unitValueInclTaxes.toLocaleString("es-CO", { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
+                                            </TableCell>
+                                            <TableCell className="text-sm font-bold text-purple-600 border border-border">
+                                              ${Math.round(totalValueInclTaxes).toLocaleString("es-CO")}
+                                            </TableCell>
+                                          </>
+                                        );
+                                      })()}
+                                      <TableCell className="text-sm min-w-[150px] border border-border py-2">
+                                        <p className="text-xs break-words whitespace-normal text-left">{materialsText}</p>
                                       </TableCell>
                                       {management && (
                                         <>
@@ -1159,6 +1187,23 @@ export function ItemsTable({
                                           </TableCell>
                                           <TableCell className="text-sm font-medium text-blue-600 border border-border text-center">
                                             {(() => {
+                                              const subtotal = Number(data.totalValue || 0);
+                                              const adminPct = Number(displayQuote.administrationPercentage || 0);
+                                              const contPct = Number(displayQuote.contingenciesPercentage || 0);
+                                              const profitPct = Number(displayQuote.profitPercentage || 0);
+                                              const isAIU = adminPct > 0 || contPct > 0 || profitPct > 0;
+                                              let totalValueInclTaxes = subtotal;
+                                              if (isAIU) {
+                                                const aVal = subtotal * (adminPct / 100);
+                                                const iVal = subtotal * (contPct / 100);
+                                                const subAI = subtotal + aVal + iVal;
+                                                const uVal = subAI * (profitPct / 100);
+                                                const vatOnU = displayQuote.vat ? (uVal * 0.19) : 0;
+                                                totalValueInclTaxes = subtotal + aVal + iVal + uVal + vatOnU;
+                                              } else if (displayQuote.vat && !displayQuote.ConstruimosAG) {
+                                                totalValueInclTaxes = subtotal * 1.19;
+                                              }
+
                                               const currentMaterialCost = isBulkEditing && finalizedQuote
                                                 ? (bulkEdits[finalizedQuote.id]?.materialCost ?? Number(finalizedQuote.materialCost || 0))
                                                 : Number(displayQuote.materialCost || 0);
@@ -1167,16 +1212,32 @@ export function ItemsTable({
                                                 ? (bulkEdits[finalizedQuote.id]?.managementPercentage ?? Number(finalizedQuote.managementPercentage || 0))
                                                 : Number(displayQuote.managementPercentage || 0);
 
-                                              const currentSubtotal = Number(data.totalValue || 0);
                                               const currentMeasure = Number(data.measure || 0);
-                                              const currentAgValue = Math.round((currentSubtotal + currentMaterialCost) * (currentMgmtPct / 100));
+                                              const currentAgValue = Math.round((totalValueInclTaxes + currentMaterialCost) * (currentMgmtPct / 100));
                                               return currentMgmtPct != null && currentMgmtPct > 0 && currentMeasure > 0
-                                                ? `$${Math.round((currentSubtotal + currentMaterialCost + currentAgValue) / currentMeasure).toLocaleString()}`
+                                                ? `$${Math.round((totalValueInclTaxes + currentMaterialCost + currentAgValue) / currentMeasure).toLocaleString()}`
                                                 : "";
                                             })()}
                                           </TableCell>
                                           <TableCell className="text-sm font-bold text-blue-700 border border-border text-center">
                                             {(() => {
+                                              const subtotal = Number(data.totalValue || 0);
+                                              const adminPct = Number(displayQuote.administrationPercentage || 0);
+                                              const contPct = Number(displayQuote.contingenciesPercentage || 0);
+                                              const profitPct = Number(displayQuote.profitPercentage || 0);
+                                              const isAIU = adminPct > 0 || contPct > 0 || profitPct > 0;
+                                              let totalValueInclTaxes = subtotal;
+                                              if (isAIU) {
+                                                const aVal = subtotal * (adminPct / 100);
+                                                const iVal = subtotal * (contPct / 100);
+                                                const subAI = subtotal + aVal + iVal;
+                                                const uVal = subAI * (profitPct / 100);
+                                                const vatOnU = displayQuote.vat ? (uVal * 0.19) : 0;
+                                                totalValueInclTaxes = subtotal + aVal + iVal + uVal + vatOnU;
+                                              } else if (displayQuote.vat && !displayQuote.ConstruimosAG) {
+                                                totalValueInclTaxes = subtotal * 1.19;
+                                              }
+
                                               const currentMaterialCost = isBulkEditing && finalizedQuote
                                                 ? (bulkEdits[finalizedQuote.id]?.materialCost ?? Number(finalizedQuote.materialCost || 0))
                                                 : Number(displayQuote.materialCost || 0);
@@ -1185,11 +1246,10 @@ export function ItemsTable({
                                                 ? (bulkEdits[finalizedQuote.id]?.managementPercentage ?? Number(finalizedQuote.managementPercentage || 0))
                                                 : Number(displayQuote.managementPercentage || 0);
 
-                                              const currentSubtotal = Number(data.totalValue || 0);
-                                              const currentAgValue = Math.round((currentSubtotal + currentMaterialCost) * (currentMgmtPct / 100));
+                                              const currentAgValue = Math.round((totalValueInclTaxes + currentMaterialCost) * (currentMgmtPct / 100));
 
                                               return currentMgmtPct != null && currentMgmtPct > 0
-                                                ? `$${Math.round(currentSubtotal + currentMaterialCost + currentAgValue).toLocaleString()}`
+                                                ? `$${Math.round(totalValueInclTaxes + currentMaterialCost + currentAgValue).toLocaleString()}`
                                                 : "";
                                             })()}
                                           </TableCell>
@@ -1198,7 +1258,6 @@ export function ItemsTable({
                                     </>
                                   );
                                 } else if (!coordinator && !management) {
-                                  // Coordinator non-AG item
                                   return (
                                     <TableCell colSpan={management ? 9 : 5} className="text-xs text-muted-foreground italic text-center">
                                       Cotización asignada a contratista
@@ -1378,7 +1437,7 @@ export function ItemsTable({
                                   </Badge>
                                 )}
                               </div>
-                              <p className="text-sm text-foreground line-clamp-2">
+                              <p className="text-sm text-foreground break-words whitespace-normal font-medium">
                                 {item.description}
                               </p>
                             </div>
@@ -1425,14 +1484,41 @@ export function ItemsTable({
                                         <span className="text-[9px] text-purple-600 font-bold uppercase">Cant/Und</span>
                                         <span className="text-xs">{Number(data.measure || 0).toLocaleString("es-CO")} {data.unit}</span>
                                       </div>
-                                      <div className="flex flex-col text-center">
-                                        <span className="text-[9px] text-purple-600 font-bold uppercase">V. Unit</span>
-                                        <span className="text-xs font-medium">${Number(data.unitValue || 0).toLocaleString()}</span>
-                                      </div>
-                                      <div className="flex flex-col text-right">
-                                        <span className="text-[9px] text-purple-600 font-bold uppercase">V. Total</span>
-                                        <span className="text-xs font-bold text-purple-700">${Number(data.totalValue || 0).toLocaleString()}</span>
-                                      </div>
+                                      {(() => {
+                                        const subtotal = Number(data.totalValue || 0);
+                                        const adminPct = Number(displayQuote.administrationPercentage || 0);
+                                        const contPct = Number(displayQuote.contingenciesPercentage || 0);
+                                        const profitPct = Number(displayQuote.profitPercentage || 0);
+                                        const isAIU = adminPct > 0 || contPct > 0 || profitPct > 0;
+                                        
+                                        let totalValueInclTaxes = subtotal;
+                                        if (isAIU) {
+                                          const aVal = subtotal * (adminPct / 100);
+                                          const iVal = subtotal * (contPct / 100);
+                                          const subAI = subtotal + aVal + iVal;
+                                          const uVal = subAI * (profitPct / 100);
+                                          const vatOnU = displayQuote.vat ? (uVal * 0.19) : 0;
+                                          totalValueInclTaxes = subtotal + aVal + iVal + uVal + vatOnU;
+                                        } else if (displayQuote.vat && !displayQuote.ConstruimosAG) {
+                                          totalValueInclTaxes = subtotal * 1.19;
+                                        }
+
+                                        const measure = Number(data.measure || 0);
+                                        const unitValueInclTaxes = measure > 0 ? (totalValueInclTaxes / measure) : Number(data.unitValue || 0);
+                                        
+                                        return (
+                                          <>
+                                            <div className="flex flex-col text-center">
+                                              <span className="text-[9px] text-purple-600 font-bold uppercase">V. Unit</span>
+                                              <span className="text-xs font-medium">${unitValueInclTaxes.toLocaleString("es-CO", { minimumFractionDigits: 0, maximumFractionDigits: 2 })}</span>
+                                            </div>
+                                            <div className="flex flex-col text-right">
+                                              <span className="text-[9px] text-purple-600 font-bold uppercase">V. Total</span>
+                                              <span className="text-xs font-bold text-purple-700">${Math.round(totalValueInclTaxes).toLocaleString("es-CO")}</span>
+                                            </div>
+                                          </>
+                                        );
+                                      })()}
                                     </div>
                                     {materialsText && (
                                       <div className="col-span-2 bg-muted/20 p-2 rounded-md border text-xs">
@@ -1512,6 +1598,7 @@ export function ItemsTable({
                                           <span className="text-[9px] text-blue-600 font-bold uppercase">V. Unit. AG</span>
                                           <span className="text-xs font-medium text-blue-600">
                                             {(() => {
+                                              const contractorTaxes = (displayQuote.vat && !displayQuote.ConstruimosAG) ? Number(displayQuote.agValue || 0) : 0;
                                               const currentMaterialCost =
                                                 isBulkEditing && finalizedQuote
                                                   ? bulkEdits[finalizedQuote.id]?.materialCost ??
@@ -1524,7 +1611,7 @@ export function ItemsTable({
                                                   Number(finalizedQuote.managementPercentage || 0)
                                                   : Number(displayQuote.managementPercentage || 0);
 
-                                              const currentSubtotal = Number(data.totalValue || 0);
+                                              const currentSubtotal = Number(data.totalValue || 0) + contractorTaxes;
                                               const currentMeasure = Number(data.measure || 0);
                                               const currentAgValue = Math.round(
                                                 (currentSubtotal + currentMaterialCost) * (currentMgmtPct / 100)
@@ -1543,6 +1630,7 @@ export function ItemsTable({
                                           <span className="text-[9px] text-blue-600 font-bold uppercase">V. Total AG</span>
                                           <span className="text-xs font-bold text-blue-700">
                                             {(() => {
+                                              const contractorTaxes = (displayQuote.vat && !displayQuote.ConstruimosAG) ? Number(displayQuote.agValue || 0) : 0;
                                               const currentMaterialCost =
                                                 isBulkEditing && finalizedQuote
                                                   ? bulkEdits[finalizedQuote.id]?.materialCost ??
@@ -1555,7 +1643,7 @@ export function ItemsTable({
                                                   Number(finalizedQuote.managementPercentage || 0)
                                                   : Number(displayQuote.managementPercentage || 0);
 
-                                              const currentSubtotal = Number(data.totalValue || 0);
+                                              const currentSubtotal = Number(data.totalValue || 0) + contractorTaxes;
                                               const currentAgValue = Math.round(
                                                 (currentSubtotal + currentMaterialCost) * (currentMgmtPct / 100)
                                               );

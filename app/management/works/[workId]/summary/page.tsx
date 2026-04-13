@@ -110,7 +110,25 @@ export default function WorkSummaryPage({ params }: WorkSummaryPageProps) {
                 const agPercentage = Number(finalizedQuote?.managementPercentage || 0);
                 const factor = 1 + (agPercentage / 100);
 
-                const activityTotalAdjusted = Number(mainSubquota.totalValue || 0) * factor;
+                const subtotal_base = Number(mainSubquota.totalValue || 0);
+                const adminPct = Number(finalizedQuote.administrationPercentage || 0);
+                const contPct = Number(finalizedQuote.contingenciesPercentage || 0);
+                const profitPct = Number(finalizedQuote.profitPercentage || 0);
+                const isAIU = adminPct > 0 || contPct > 0 || profitPct > 0;
+                
+                let contractorTaxes = 0;
+                if (isAIU) {
+                    const aVal = subtotal_base * (adminPct / 100);
+                    const iVal = subtotal_base * (contPct / 100);
+                    const subAI = subtotal_base + aVal + iVal;
+                    const uVal = subAI * (profitPct / 100);
+                    const vatOnU = finalizedQuote.vat ? (uVal * 0.19) : 0;
+                    contractorTaxes = aVal + iVal + uVal + vatOnU;
+                } else if (finalizedQuote.vat && !finalizedQuote.ConstruimosAG) {
+                    contractorTaxes = subtotal_base * 0.19;
+                }
+                
+                const activityTotalAdjusted = (subtotal_base + contractorTaxes) * factor;
                 const materialCostAdjusted = Number(finalizedQuote?.materialCost || 0) * factor;
 
                 subtotal += (activityTotalAdjusted + materialCostAdjusted);
@@ -128,7 +146,25 @@ export default function WorkSummaryPage({ params }: WorkSummaryPageProps) {
                 const subquotas = finalizedQuote?.subquotations || {};
                 const mainSubquota = subquotas.item_1 || Object.values(subquotas)[0] || {};
 
-                const activityTotalRaw = Number(mainSubquota.totalValue || 0);
+                const subtotal_base = Number(mainSubquota.totalValue || 0);
+                const adminPct = Number(finalizedQuote.administrationPercentage || 0);
+                const contPct = Number(finalizedQuote.contingenciesPercentage || 0);
+                const profitPct = Number(finalizedQuote.profitPercentage || 0);
+                const isAIU = adminPct > 0 || contPct > 0 || profitPct > 0;
+                
+                let contractorTaxes = 0;
+                if (isAIU) {
+                    const aVal = subtotal_base * (adminPct / 100);
+                    const iVal = subtotal_base * (contPct / 100);
+                    const subAI = subtotal_base + aVal + iVal;
+                    const uVal = subAI * (profitPct / 100);
+                    const vatOnU = finalizedQuote.vat ? (uVal * 0.19) : 0;
+                    contractorTaxes = aVal + iVal + uVal + vatOnU;
+                } else if (finalizedQuote.vat && !finalizedQuote.ConstruimosAG) {
+                    contractorTaxes = subtotal_base * 0.19;
+                }
+                
+                const activityTotalRaw = subtotal_base + contractorTaxes;
                 const materialCostRaw = Number(finalizedQuote.materialCost || 0);
 
                 subtotalUtility += (activityTotalRaw + materialCostRaw);
@@ -509,8 +545,28 @@ export default function WorkSummaryPage({ params }: WorkSummaryPageProps) {
                                             const mainSubquota = subquotas.item_1 || Object.values(subquotas)[0] || {};
 
                                             // Actividad ajustada
-                                            const unitValueAdjusted = Math.round((Number(mainSubquota.totalValue || 0) + Number(finalizedQuote?.materialCost || 0)) * factor / Number(mainSubquota.measure));
-                                            const activityTotalAdjusted = Number(mainSubquota.totalValue || 0) * factor;
+                                            const subtotal_base = Number(mainSubquota.totalValue || 0);
+                                            const adminPct = Number(finalizedQuote?.administrationPercentage || 0);
+                                            const contPct = Number(finalizedQuote?.contingenciesPercentage || 0);
+                                            const profitPct = Number(finalizedQuote?.profitPercentage || 0);
+                                            const isAIU = adminPct > 0 || contPct > 0 || profitPct > 0;
+                                            
+                                            let contractorTaxes = 0;
+                                            if (isAIU) {
+                                                const aVal = subtotal_base * (adminPct / 100);
+                                                const iVal = subtotal_base * (contPct / 100);
+                                                const subAI = subtotal_base + aVal + iVal;
+                                                const uVal = subAI * (profitPct / 100);
+                                                const vatOnU = finalizedQuote?.vat ? (uVal * 0.19) : 0;
+                                                contractorTaxes = aVal + iVal + uVal + vatOnU;
+                                            } else if (finalizedQuote?.vat && !finalizedQuote?.ConstruimosAG) {
+                                                contractorTaxes = subtotal_base * 0.19;
+                                            }
+
+                                            const totalActivityBase = subtotal_base + contractorTaxes;
+                                            
+                                            const unitValueAdjusted = Math.round((totalActivityBase + Number(finalizedQuote?.materialCost || 0)) * factor / Number(mainSubquota.measure));
+                                            const activityTotalAdjusted = totalActivityBase * factor;
 
                                             // Materiales (SIN AG %)
                                             const materialCostRaw = Number(finalizedQuote?.materialCost || 0);

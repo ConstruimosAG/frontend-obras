@@ -165,7 +165,26 @@ export default function ManagementQuoteForm({ params }: ManagementQuoteFormProps
   const calculateSubtotal = () => {
     if (!quote) return 0;
     if (isAG) return agEditedSubtotal;
-    return Number(quote.subtotal);
+    
+    const subtotal_base = Number(quote.subtotal || 0);
+    const adminPct = Number(quote.administrationPercentage || 0);
+    const contPct = Number(quote.contingenciesPercentage || 0);
+    const profitPct = Number(quote.profitPercentage || 0);
+    const isAIU = adminPct > 0 || contPct > 0 || profitPct > 0;
+    
+    let contractorTaxes = 0;
+    if (isAIU) {
+      const aVal = subtotal_base * (adminPct / 100);
+      const iVal = subtotal_base * (contPct / 100);
+      const subAI = subtotal_base + aVal + iVal;
+      const uVal = subAI * (profitPct / 100);
+      const vatOnU = quote.vat ? (uVal * 0.19) : 0;
+      contractorTaxes = aVal + iVal + uVal + vatOnU;
+    } else if (quote.vat && !quote.ConstruimosAG) {
+      contractorTaxes = subtotal_base * 0.19;
+    }
+    
+    return subtotal_base + contractorTaxes;
   };
 
   const calculateTotalContractor = () => {
@@ -578,13 +597,26 @@ export default function ManagementQuoteForm({ params }: ManagementQuoteFormProps
               </div>
 
               {/* Subtotal del contratista (read only for external, calculated for AG) */}
-              <div className="flex items-center justify-between rounded-lg bg-muted/30 px-4 py-3 border">
-                <span className="text-sm font-medium text-muted-foreground">
-                  Subtotal Contratista
-                </span>
-                <span className="text-lg font-bold tabular-nums">
-                  ${formatCurrency(calculateSubtotal())}
-                </span>
+              <div className="space-y-2 mt-4">
+                {!isAG && quote.vat && (
+                  <div className="flex items-center justify-between px-1 text-sm">
+                    <span className="text-muted-foreground">
+                      + {quote.administrationPercentage || quote.contingenciesPercentage || quote.profitPercentage ? "Impuestos AIU " : "IVA "}
+                      del contratista:
+                    </span>
+                    <span className="font-medium text-foreground">
+                      +${formatCurrency(Number(quote.agValue || 0))}
+                    </span>
+                  </div>
+                )}
+                <div className="flex items-center justify-between rounded-lg bg-muted/30 px-4 py-3 border">
+                  <span className="text-sm font-medium text-muted-foreground">
+                    Subtotal Contratista {(!isAG && quote.vat) ? "(incl. impuestos)" : ""}
+                  </span>
+                  <span className="text-lg font-bold tabular-nums">
+                    ${formatCurrency(calculateSubtotal())}
+                  </span>
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -622,7 +654,7 @@ export default function ManagementQuoteForm({ params }: ManagementQuoteFormProps
                 {/* Costo de Materiales */}
                 <div className="space-y-1.5">
                   <Label className="text-xs font-semibold uppercase text-muted-foreground tracking-wider">
-                    Costo de Materiales <span className="text-red-500">*</span>
+                    Costo de Materiales
                   </Label>
                   <div className="relative">
                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">$</span>
@@ -635,7 +667,6 @@ export default function ManagementQuoteForm({ params }: ManagementQuoteFormProps
                       onBlur={() => handleCostBlur(materialCost, setMaterialCostDisplay)}
                       placeholder="0"
                       className="pl-7"
-                      required
                     />
                   </div>
                   <p className="text-xs text-muted-foreground">Escribe el valor; se formateará con puntos de miles</p>
@@ -682,7 +713,7 @@ export default function ManagementQuoteForm({ params }: ManagementQuoteFormProps
             <CardContent className="p-6">
               <div className="space-y-3">
                 <div className="flex justify-between items-center text-sm">
-                  <span className="text-muted-foreground">Subtotal contratista:</span>
+                  <span className="text-muted-foreground">Subtotal contratista {(!isAG && quote.vat) ? "(incl. impuestos)" : ""}:</span>
                   <span className="font-semibold tabular-nums">${formatCurrency(calculateSubtotal())}</span>
                 </div>
 

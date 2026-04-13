@@ -121,11 +121,14 @@ export function QuoteItemForm({
 
   // Calculations
   const itemTotal = useMemo(() => measure * unitValue, [measure, unitValue]);
-  const subtotal = itemTotal; // Contractor no longer sets materialCost
+  const subtotal = itemTotal;
 
   const adminAmount = useMemo(() => (taxType === "aiu" ? subtotal * (administrationPerc / 100) : 0), [taxType, subtotal, administrationPerc]);
   const contingenciesAmount = useMemo(() => (taxType === "aiu" ? subtotal * (contingenciesPerc / 100) : 0), [taxType, subtotal, contingenciesPerc]);
-  const profitAmount = useMemo(() => (taxType === "aiu" ? subtotal * (profitPerc / 100) : 0), [taxType, subtotal, profitPerc]);
+  
+  const totalDirectCost = useMemo(() => subtotal + adminAmount + contingenciesAmount, [subtotal, adminAmount, contingenciesAmount]);
+  
+  const profitAmount = useMemo(() => (taxType === "aiu" ? totalDirectCost * (profitPerc / 100) : 0), [taxType, totalDirectCost, profitPerc]);
   const ivaOnProfit = useMemo(() => (taxType === "aiu" ? profitAmount * (ivaPercent / 100) : 0), [taxType, profitAmount, ivaPercent]);
   
   const taxAmount = useMemo(() => {
@@ -155,6 +158,8 @@ export function QuoteItemForm({
       return;
     }
 
+    if (submitting) return;
+
     const payload = {
       itemId: Number(item.id),
       subquotations: {
@@ -168,7 +173,7 @@ export function QuoteItemForm({
       administrationPercentage: taxType === "aiu" ? administrationPerc : null,
       contingenciesPercentage: taxType === "aiu" ? contingenciesPerc : null,
       profitPercentage: taxType === "aiu" ? profitPerc : null,
-      agValue: null,
+      agValue: taxType !== "none" ? Number(taxAmount.toFixed(2)) : null,
       vat: taxType !== "none",
       assignedContractorId: isExternal ? null : (currentUser?.id || null),
       ...(isExternal && {
@@ -181,10 +186,8 @@ export function QuoteItemForm({
       let result;
       if (isEditing && initial?.id) {
         result = await updateQuoteItem(initial.id, payload as any);
-        toast.success("Cotización actualizada");
       } else {
         result = await createQuoteItem(payload as any);
-        toast.success("Cotización enviada");
       }
       onSaved?.(result);
     } catch (err: any) {
@@ -193,87 +196,58 @@ export function QuoteItemForm({
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6 max-w-3xl mx-auto">
+    <form onSubmit={handleSubmit} className="space-y-8">
       
-      {/* ── Context ── */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 bg-slate-50 dark:bg-slate-900/50 p-4 rounded-lg border border-slate-200">
-        <div className="flex items-center gap-3 min-w-0">
-          <div className="bg-slate-200 dark:bg-slate-800 p-2 rounded text-slate-600">
-            <Building2 className="w-4 h-4" />
-          </div>
-          <div className="min-w-0">
-            <h3 className="text-sm font-bold text-slate-900 dark:text-white truncate">{(item as any).work?.code || "Obra"}</h3>
-            <p className="text-[11px] text-slate-500 truncate max-w-[200px]">{item.description}</p>
-          </div>
-        </div>
-        <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider bg-white dark:bg-slate-950 px-3 py-1.5 rounded border border-slate-200 shadow-sm">
-          <Calendar className="w-3 h-3 text-slate-400" />
-          <span className="text-slate-400">Asignado:</span>
-          <span className="text-slate-700 dark:text-slate-300">{formatDate(item.createdAt)}</span>
-        </div>
-      </div>
-
-      {/* ── Contratista Externo ── */}
-      {isExternal && (
-        <Card className="shadow-none border-slate-200">
-          <CardHeader className="bg-slate-50/50 py-3 border-b">
-            <CardTitle className="text-xs font-bold uppercase tracking-widest text-slate-600 flex items-center gap-2">
-              <Info className="w-3.5 h-3.5" /> Identificación de Contratista
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+      {/* ── Sección de Cotización y Materiales ── */}
+      <div className="space-y-6">
+        {/* Contratista Externo (si aplica) */}
+        {isExternal && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pb-4">
             <div className="space-y-1">
-              <Label className="text-[10px] font-bold text-slate-400 uppercase">Nombre Completo</Label>
+              <Label className="text-[10px] font-bold text-gray-400 uppercase">Nombre Completo</Label>
               <Input
                 value={externalName}
                 onChange={(e) => setExternalName(e.target.value)}
-                className={`h-9 text-sm ${errors.externalName ? "border-red-500" : "border-slate-200"}`}
+                className={`h-9 text-sm ${errors.externalName ? "border-red-500" : "border-gray-200"}`}
               />
             </div>
             <div className="space-y-1">
-              <Label className="text-[10px] font-bold text-slate-400 uppercase">Documento / Identificación</Label>
+              <Label className="text-[10px] font-bold text-gray-400 uppercase">Identificación</Label>
               <Input
                 value={externalIdentifier}
                 onChange={(e) => setExternalIdentifier(e.target.value)}
-                className={`h-9 text-sm ${errors.externalIdentifier ? "border-red-500" : "border-slate-200"}`}
+                className={`h-9 text-sm ${errors.externalIdentifier ? "border-red-500" : "border-gray-200"}`}
               />
             </div>
-          </CardContent>
-        </Card>
-      )}
+          </div>
+        )}
 
-      {/* ── Detalles del Ítem ── */}
-      <Card className="shadow-none border-slate-200 overflow-hidden">
-        <CardHeader className="bg-slate-800 py-3 border-b">
-          <CardTitle className="text-white text-xs font-bold uppercase tracking-widest flex items-center gap-2">
-            <FileText className="w-3.5 h-3.5" /> Detalles del Ítem a Cotizar
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="p-5 space-y-4">
+        {/* Detalles de la Actividad */}
+        <div className="space-y-4">
           <div className="space-y-1.5">
-            <Label className="text-[10px] font-bold text-slate-400 uppercase">Descripción del Trabajo <span className="text-red-500">*</span></Label>
+            <Label className="text-[10px] font-bold text-gray-400 uppercase">Agrega la descripcion de la actividad a realizar <span className="text-red-500">*</span></Label>
             <Textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Especifique el alcance de su trabajo..."
-              rows={3}
-              className={`text-sm ${errors.description ? "border-red-500" : "border-slate-200"}`}
+              placeholder="Describa brevemente la actividad..."
+              rows={2}
+              className={`text-sm resize-none ${errors.description ? "border-red-500" : "border-gray-200 focus:border-purple-400 focus:ring-0"}`}
             />
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-            <div className="space-y-1.5 sm:col-span-1">
-              <Label className="text-[10px] font-bold text-slate-400 uppercase">Cantidad</Label>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            <div className="space-y-1.5">
+              <Label className="text-[10px] font-bold text-gray-400 uppercase">Cantidad</Label>
               <Input
                 value={measureDisplay}
                 onChange={(e) => handleCostInput(e.target.value, setMeasureDisplay, setMeasure)}
-                className={`h-9 text-sm ${errors.measure ? "border-red-500" : "border-slate-200"}`}
+                className={`h-9 text-sm ${errors.measure ? "border-red-500" : "border-gray-200 focus:border-purple-400 focus:ring-0"}`}
               />
             </div>
-            <div className="space-y-1.5 sm:col-span-1">
-              <Label className="text-[10px] font-bold text-slate-400 uppercase">Unidad</Label>
+            <div className="space-y-1.5">
+              <Label className="text-[10px] font-bold text-gray-400 uppercase">Unidad</Label>
               <Select value={unit} onValueChange={setUnit}>
-                <SelectTrigger className="h-9 text-sm border-slate-200">
+                <SelectTrigger className="h-9 text-sm border-gray-200 focus:ring-0">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -283,126 +257,151 @@ export function QuoteItemForm({
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-1.5 sm:col-span-1">
-              <Label className="text-[10px] font-bold text-slate-400 uppercase">Valor Unitario</Label>
+            <div className="space-y-1.5">
+              <Label className="text-[10px] font-bold text-gray-400 uppercase">Valor Unitario</Label>
               <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs">$</span>
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs">$</span>
                 <Input
                   value={unitValueDisplay}
                   onChange={(e) => handleCostInput(e.target.value, setUnitValueDisplay, setUnitValue)}
-                  className="h-9 text-sm pl-7 border-slate-200"
+                  className="h-9 text-sm pl-7 border-gray-200 focus:border-purple-400 focus:ring-0"
                 />
               </div>
             </div>
-            <div className="space-y-1.5 sm:col-span-3 lg:col-span-1">
-              <Label className="text-[10px] font-bold text-slate-400 uppercase">Total Actividad</Label>
-              <div className="h-9 px-3 flex items-center rounded-md border border-slate-100 bg-slate-50 text-sm font-bold text-slate-600 tabular-nums">
+            <div className="space-y-1.5">
+              <Label className="text-[10px] font-bold text-gray-400 uppercase">Subtotal</Label>
+              <div className="h-9 px-3 flex items-center rounded-md border border-gray-50 bg-gray-50/50 text-sm font-bold text-gray-600">
                 ${itemTotal.toLocaleString("es-CO")}
               </div>
             </div>
           </div>
-        </CardContent>
-      </Card>
+        </div>
 
-      {/* ── Observaciones de Materiales ── */}
-      <div className="space-y-2 px-1">
-        <Label className="text-[10px] font-bold text-slate-400 uppercase">Notas sobre Materiales / Observaciones (Opcional)</Label>
-        <Textarea
-          value={materialsDesc}
-          onChange={(e) => setMaterialsDesc(e.target.value)}
-          placeholder="Si requiere materiales específicos, lístelos aquí..."
-          rows={2}
-          className="text-sm border-slate-200 bg-slate-50/30"
-        />
+        {/* Materiales y Observaciones */}
+        <div className="space-y-1.5 pt-2">
+          <Label className="text-[10px] font-bold text-gray-400 uppercase">Materiales y/u Observaciones (Opcional)</Label>
+          <Textarea
+            value={materialsDesc}
+            onChange={(e) => setMaterialsDesc(e.target.value)}
+            placeholder="Si requiere materiales específicos u observaciones adicionales, lístelos aquí..."
+            rows={4}
+            className="text-sm border-gray-200 focus:border-purple-400 focus:ring-0 resize-none"
+          />
+        </div>
+
+        {/* Impuestos / AIU */}
+        <div className="pt-4 space-y-4 border-t border-gray-50">
+          <div className="flex gap-6 items-center">
+            <div className="flex items-center space-x-2">
+              <Checkbox id="iva" checked={taxType === "iva"} onCheckedChange={(c) => setTaxType(c ? "iva" : "none")} className="data-[state=checked]:bg-purple-600 data-[state=checked]:border-purple-600" />
+              <Label htmlFor="iva" className="text-[11px] font-bold text-gray-500 cursor-pointer">IVA ({ivaPercent}%)</Label>
+            </div>
+            <div className="flex items-center space-x-2">
+              <Checkbox id="aiu" checked={taxType === "aiu"} onCheckedChange={(c) => setTaxType(c ? "aiu" : "none")} className="data-[state=checked]:bg-purple-600 data-[state=checked]:border-purple-600" />
+              <Label htmlFor="aiu" className="text-[11px] font-bold text-gray-500 cursor-pointer">Esquema AIU</Label>
+            </div>
+          </div>
+
+          {taxType === "aiu" && (
+            <div className="grid grid-cols-3 gap-4 pt-2">
+              <div className="space-y-1">
+                <Label className="text-[9px] font-bold text-gray-400 uppercase">Admin %</Label>
+                <Input
+                  type="number"
+                  value={administrationPerc || ""}
+                  onChange={(e) => setAdministrationPerc(Math.min(100, Math.max(0, parseFloat(e.target.value) || 0)))}
+                  className="h-8 text-xs border-gray-200 focus:ring-0"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-[9px] font-bold text-gray-400 uppercase">Impr. %</Label>
+                <Input
+                  type="number"
+                  value={contingenciesPerc || ""}
+                  onChange={(e) => setContingenciesPerc(Math.min(100, Math.max(0, parseFloat(e.target.value) || 0)))}
+                  className="h-8 text-xs border-gray-200 focus:ring-0"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-[9px] font-bold text-gray-400 uppercase">Util. %</Label>
+                <Input
+                  type="number"
+                  value={profitPerc || ""}
+                  onChange={(e) => setProfitPerc(Math.min(100, Math.max(0, parseFloat(e.target.value) || 0)))}
+                  className="h-8 text-xs border-gray-200 focus:ring-0"
+                />
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* ── Impuestos y AIU ── */}
-      <div className="bg-white border border-slate-200 rounded-lg p-4 space-y-4">
-        <div className="flex flex-wrap gap-5 items-center">
-          <div className="flex items-center space-x-2">
-            <Checkbox id="iva" checked={taxType === "iva"} onCheckedChange={(c) => setTaxType(c ? "iva" : "none")} />
-            <Label htmlFor="iva" className="text-xs font-semibold text-slate-600 cursor-pointer">IVA ({ivaPercent}%)</Label>
+      {/* ── Resumen Final ── */}
+      <div className="space-y-4 pt-6">
+        <div className="flex items-center gap-2 border-b border-purple-100 pb-2">
+          <h2 className="text-lg font-bold text-gray-800">3. Resumen</h2>
+        </div>
+        
+        <div className="bg-gray-50/50 rounded-lg p-5 space-y-3">
+          <div className="flex justify-between text-xs font-bold text-gray-500">
+            <span>Subtotal de ítems:</span>
+            <span className="tabular-nums">${itemTotal.toLocaleString("es-CO")}</span>
           </div>
-          <div className="flex items-center space-x-2">
-            <Checkbox id="aiu" checked={taxType === "aiu"} onCheckedChange={(c) => setTaxType(c ? "aiu" : "none")} />
-            <Label htmlFor="aiu" className="text-xs font-semibold text-slate-600 cursor-pointer">Esquema AIU</Label>
+          
+          {taxType === "iva" && (
+            <div className="flex justify-between text-xs font-bold text-purple-600">
+              <span>IVA ({ivaPercent}%):</span>
+              <span className="tabular-nums">+${taxAmount.toLocaleString("es-CO")}</span>
+            </div>
+          )}
+
+          {taxType === "aiu" && (
+            <div className="space-y-2 text-[11px] text-gray-600 pt-1 border-t border-gray-100">
+              <div className="flex justify-between">
+                <span>Administración ({administrationPerc}%):</span>
+                <span className="tabular-nums">${adminAmount.toLocaleString("es-CO")}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Imprevistos ({contingenciesPerc}%):</span>
+                <span className="tabular-nums">${contingenciesAmount.toLocaleString("es-CO")}</span>
+              </div>
+              <div className="flex justify-between font-bold text-gray-700 pt-1">
+                <span>Total Costo Directo:</span>
+                <span className="tabular-nums">${totalDirectCost.toLocaleString("es-CO")}</span>
+              </div>
+              <div className="flex justify-between text-purple-600">
+                <span>Utilidad ({profitPerc}% sobre Costo Directo):</span>
+                <span className="tabular-nums">${profitAmount.toLocaleString("es-CO")}</span>
+              </div>
+              <div className="flex justify-between text-purple-600">
+                <span>IVA sobre Utilidad (19%):</span>
+                <span className="tabular-nums">${ivaOnProfit.toLocaleString("es-CO")}</span>
+              </div>
+            </div>
+          )}
+          
+          <div className="flex justify-between items-center bg-purple-600 p-4 rounded-lg shadow-sm text-white mt-4">
+            <span className="text-xs font-bold uppercase tracking-widest">Total Cotización</span>
+            <span className="text-xl font-bold tabular-nums">
+              ${totalContractor.toLocaleString("es-CO")}
+            </span>
           </div>
         </div>
 
-        {taxType === "aiu" && (
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-3 border-t">
-            <div className="space-y-1">
-              <Label className="text-[9px] font-bold text-slate-400 uppercase">Admin (%)</Label>
-              <Input
-                type="number"
-                value={administrationPerc || ""}
-                onChange={(e) => setAdministrationPerc(Math.min(100, Math.max(0, parseFloat(e.target.value) || 0)))}
-                className="h-8 text-xs border-slate-200"
-              />
-            </div>
-            <div className="space-y-1">
-              <Label className="text-[9px] font-bold text-slate-400 uppercase">Imprevistos (%)</Label>
-              <Input
-                type="number"
-                value={contingenciesPerc || ""}
-                onChange={(e) => setContingenciesPerc(Math.min(100, Math.max(0, parseFloat(e.target.value) || 0)))}
-                className="h-8 text-xs border-slate-200"
-              />
-            </div>
-            <div className="space-y-1">
-              <Label className="text-[9px] font-bold text-slate-400 uppercase">Utilidad (%)</Label>
-              <Input
-                type="number"
-                value={profitPerc || ""}
-                onChange={(e) => setProfitPerc(Math.min(100, Math.max(0, parseFloat(e.target.value) || 0)))}
-                className="h-8 text-xs border-slate-200"
-              />
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* ── Resumen ── */}
-      <Card className="shadow-none border-blue-100 bg-blue-50/30">
-        <CardContent className="p-5">
-           <div className="space-y-2">
-              <div className="flex justify-between text-xs font-semibold text-slate-500">
-                <span>Subtotal de ítems:</span>
-                <span className="tabular-nums">${itemTotal.toLocaleString("es-CO")}</span>
-              </div>
-              
-              {taxType !== "none" && (
-                <div className="flex justify-between text-xs font-semibold text-blue-600">
-                  <span>{taxType === "iva" ? "IVA:" : "AIU + IVA:"}</span>
-                  <span className="tabular-nums">+${taxAmount.toLocaleString("es-CO", { minimumFractionDigits: 0 })}</span>
-                </div>
-              )}
-              
-              <Separator className="my-1 bg-blue-100" />
-              
-              <div className="flex justify-between items-center bg-blue-100/50 p-3 rounded-lg">
-                <span className="text-xs font-extrabold text-blue-700 uppercase tracking-widest">Total Cotización:</span>
-                <span className="text-xl font-black text-blue-900 tabular-nums">
-                  ${totalContractor.toLocaleString("es-CO", { minimumFractionDigits: 0 })}
-                </span>
-              </div>
-           </div>
-        </CardContent>
-      </Card>
-
-      <div className="flex justify-end pt-2 pb-10">
-        <Button
-          type="submit"
-          disabled={submitting}
-          className="w-full sm:w-auto min-w-[180px] h-11 bg-slate-900 hover:bg-black text-white text-sm font-bold shadow-lg transition-transform active:scale-95"
-        >
-          {submitting ? (
-            <Loader2 className="animate-spin w-4 h-4 mr-2" />
-          ) : (
-            <Save className="w-4 h-4 mr-2" />
-          )}
-          {isEditing ? "Actualizar Cotización" : "Enviar Cotización"}
-        </Button>
+        <div className="flex justify-end pt-2">
+          <Button
+            type="submit"
+            disabled={submitting}
+            className="w-full sm:w-auto h-11 px-10 bg-gray-900 hover:bg-black text-white text-sm font-bold rounded-lg transition-all"
+          >
+            {submitting ? (
+              <Loader2 className="animate-spin w-4 h-4 mr-2" />
+            ) : (
+              <Save className="w-4 h-4 mr-2" />
+            )}
+            {isEditing ? "Actualizar Cotización" : "Enviar Cotización"}
+          </Button>
+        </div>
       </div>
 
     </form>
