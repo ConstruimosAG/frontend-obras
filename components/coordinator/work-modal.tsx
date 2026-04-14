@@ -27,7 +27,7 @@ interface WorkModalProps {
     code?: string;
     quotationDeadline: string;
     finalized?: boolean;
-  }) => Promise<void> | void;
+  }) => Promise<boolean | void> | boolean | void;
   isSubmitting?: boolean;
   isAdmin?: boolean;
 }
@@ -106,24 +106,30 @@ export function WorkModal({
 
       if (isEditing) {
         workEditSchema.parse({
+          code: formData.code,
           quotationDeadline: deadlineISO,
           finalized: formData.finalized,
         });
 
-        await onSubmit({
+        const success = await onSubmit({
+          code: formData.code,
           quotationDeadline: deadlineISO,
           finalized: formData.finalized,
         });
+        
+        if (success === false) return;
       } else {
         workSchema.parse({
           code: formData.code,
           quotationDeadline: deadlineISO,
         });
 
-        await onSubmit({
+        const success = await onSubmit({
           code: formData.code,
           quotationDeadline: deadlineISO,
         });
+
+        if (success === false) return;
       }
 
       onOpenChange(false);
@@ -138,7 +144,8 @@ export function WorkModal({
         setErrors(newErrors);
         return;
       }
-      console.error(error);
+      // No lanzamos el error para que no rompa el programa,
+      // el hook useWorks ya muestra el toast con el error
     }
   };
 
@@ -151,40 +158,28 @@ export function WorkModal({
           </DialogTitle>
           <DialogDescription className="text-sm">
             {isEditing
-              ? "Modifica los datos de la obra. El código no puede ser editado."
+              ? "Modifica los datos de la obra."
               : "Completa los datos para crear una nueva obra."}
           </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          {!isEditing && (
-            <div className="space-y-2">
-              <Label htmlFor="code">Código</Label>
-              <Input
-                id="code"
-                value={formData.code}
-                onChange={(e) =>
-                  setFormData((prev) => ({ ...prev, code: e.target.value }))
-                }
-                placeholder="Ej: PCN-2026-001"
-                aria-invalid={!!errors.code}
-                disabled={isSubmitting}
-              />
-              {errors.code && (
-                <p className="text-sm text-destructive">{errors.code}</p>
-              )}
-            </div>
-          )}
-
-          {isEditing && (
-            <div className="space-y-2">
-              <Label>Código</Label>
-              <Input value={work?.code} disabled className="bg-muted" />
-              <p className="text-xs text-muted-foreground">
-                El código no puede ser modificado
-              </p>
-            </div>
-          )}
+          <div className="space-y-2">
+            <Label htmlFor="code">Código</Label>
+            <Input
+              id="code"
+              value={formData.code}
+              onChange={(e) =>
+                setFormData((prev) => ({ ...prev, code: e.target.value }))
+              }
+              placeholder="Ej: PCN-2026-001"
+              aria-invalid={!!errors.code}
+              disabled={isSubmitting}
+            />
+            {errors.code && (
+              <p className="text-sm text-destructive">{errors.code}</p>
+            )}
+          </div>
 
           <div className="space-y-2">
             <Label htmlFor="quotationDeadline">

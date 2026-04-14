@@ -1070,10 +1070,10 @@ export function ItemsTable({
                           <TableHead className="border border-border w-36 text-xs text-center">Materiales</TableHead>
                           {management && (
                             <>
-                              <TableHead className="border border-border w-24 text-xs text-center whitespace-nowrap">Costo Mat.</TableHead>
-                              <TableHead className="border border-border w-16 text-xs text-center">% AG</TableHead>
-                              <TableHead className="border border-border w-24 text-xs text-center whitespace-nowrap">V. Unit. AG</TableHead>
-                              <TableHead className="border border-border w-24 text-xs text-center whitespace-nowrap">V. Total AG</TableHead>
+                              <TableHead className="border border-border w-24 text-xs text-center whitespace-nowrap bg-orange-500 text-white">Costo Mat.</TableHead>
+                              <TableHead className="border border-border w-16 text-xs text-center bg-orange-500 text-white">% AG</TableHead>
+                              <TableHead className="border border-border w-24 text-xs text-center whitespace-nowrap bg-orange-500 text-white">V. Unit. AG</TableHead>
+                              <TableHead className="border border-border w-24 text-xs text-center whitespace-nowrap bg-orange-500 text-white">V. Total AG</TableHead>
                             </>
                           )}
                           <TableHead className="border border-border w-24 text-xs text-center whitespace-nowrap">Creado</TableHead>
@@ -1382,16 +1382,18 @@ export function ItemsTable({
                                         </Button>
                                       )}
 
-                                      <Button
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={() => handleEdit(item)}
-                                        className="h-8 px-2"
-                                      >
-                                        <Pencil className="h-3.5 w-3.5" />
-                                      </Button>
+                                      {!(coordinator && isFinished) && (
+                                        <Button
+                                          variant="outline"
+                                          size="sm"
+                                          onClick={() => handleEdit(item)}
+                                          className="h-8 px-2"
+                                        >
+                                          <Pencil className="h-3.5 w-3.5" />
+                                        </Button>
+                                      )}
 
-                                      {item.quoteItems?.some(q => q.ConstruimosAG) && (
+                                      {!isFinished && item.quoteItems?.some(q => q.ConstruimosAG) && (
                                         <Button
                                           variant="outline"
                                           size="sm"
@@ -1403,15 +1405,17 @@ export function ItemsTable({
                                         </Button>
                                       )}
 
-                                      <Button
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={() => handlePermanentDelete(item)}
-                                        className="h-8 px-2 text-destructive hover:text-destructive hover:bg-destructive/10"
-                                        disabled={submitting}
-                                      >
-                                        <CircleX className="h-4 w-4" />
-                                      </Button>
+                                      {!(coordinator && isFinished) && (
+                                        <Button
+                                          variant="outline"
+                                          size="sm"
+                                          onClick={() => handlePermanentDelete(item)}
+                                          className="h-8 px-2 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                          disabled={submitting}
+                                        >
+                                          <CircleX className="h-4 w-4" />
+                                        </Button>
+                                      )}
 
                                       {!coordinator && (
                                         <>
@@ -1765,17 +1769,19 @@ export function ItemsTable({
                                   </Button>
                                 )}
 
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => handleEdit(item)}
-                                  className="flex-1"
-                                >
-                                  <Pencil className="h-4 w-4 mr-1" />
-                                  Editar
-                                </Button>
+                                {!(coordinator && isFinished) && (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => handleEdit(item)}
+                                    className="flex-1"
+                                  >
+                                    <Pencil className="h-4 w-4 mr-1" />
+                                    Editar
+                                  </Button>
+                                )}
 
-                                {item.quoteItems?.some(q => q.ConstruimosAG) && (
+                                {coordinator && !isFinished && item.quoteItems?.some(q => q.ConstruimosAG) && (
                                   <Button
                                     variant="outline"
                                     size="sm"
@@ -1787,15 +1793,17 @@ export function ItemsTable({
                                   </Button>
                                 )}
 
-                                {!management && (<Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => handlePermanentDelete(item)}
-                                  className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                                  disabled={submitting}
-                                >
-                                  <CircleX className="h-4 w-4" />
-                                </Button>)}
+                                {!(coordinator && isFinished) && !management && (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => handlePermanentDelete(item)}
+                                    className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                                    disabled={submitting}
+                                  >
+                                    <CircleX className="h-4 w-4" />
+                                  </Button>
+                                )}
 
                                 <Button
                                   variant="outline"

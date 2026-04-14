@@ -6,7 +6,11 @@ import type { Work } from "@/lib/types";
 import { fetchClient } from "@/lib/fetch-client";
 
 type CreatePayload = { code: string; quotationDeadline: string };
-type UpdatePayload = { quotationDeadline: string; finalized?: boolean };
+type UpdatePayload = {
+  code?: string;
+  quotationDeadline: string;
+  finalized?: boolean;
+};
 
 export function useWorks() {
   const [works, setWorks] = useState<Work[]>([]);
@@ -59,7 +63,7 @@ export function useWorks() {
   }, [baseUrl, toast]);
 
   const createWork = useCallback(
-    async (data: CreatePayload) => {
+    async (data: CreatePayload): Promise<{ success: boolean; data?: Work; error?: string }> => {
       setSubmitting(true);
       try {
         if (!baseUrl) throw new Error("NEXT_PUBLIC_BACKEND_URL is not defined");
@@ -73,8 +77,10 @@ export function useWorks() {
         });
 
         if (!res.ok) {
-          const text = await res.text().catch(() => null);
-          throw new Error(`Error creating work: ${res.status} ${text ?? ""}`);
+          const errorPayload = await res.json().catch(() => null);
+          const message = errorPayload?.message || `Error al crear la obra: ${res.status}`;
+          toast.error(message);
+          return { success: false, error: message };
         }
 
         const json = await res.json();
@@ -85,11 +91,12 @@ export function useWorks() {
 
         toast.success("La obra se creó correctamente.");
 
-        return created;
+        return { success: true, data: created };
       } catch (err: any) {
         console.error(err);
-        toast.error(err?.message ?? "No se pudo crear la obra");
-        throw err;
+        const message = err?.message ?? "No se pudo crear la obra";
+        toast.error(message);
+        return { success: false, error: message };
       } finally {
         setSubmitting(false);
       }
@@ -98,7 +105,7 @@ export function useWorks() {
   );
 
   const updateWork = useCallback(
-    async (id: string | number, data: UpdatePayload) => {
+    async (id: string | number, data: UpdatePayload): Promise<{ success: boolean; data?: Work; error?: string }> => {
       setSubmitting(true);
       try {
         if (!baseUrl) throw new Error("NEXT_PUBLIC_BACKEND_URL is not defined");
@@ -106,14 +113,17 @@ export function useWorks() {
         const res = await fetchClient(`${baseUrl}/api/works/${id}`, {
           method: "PUT",
           body: JSON.stringify({
+            code: data.code,
             quotationDeadline: new Date(data.quotationDeadline),
             finalized: data.finalized,
           }),
         });
 
         if (!res.ok) {
-          const text = await res.text().catch(() => null);
-          throw new Error(`Error updating work: ${res.status} ${text ?? ""}`);
+          const errorPayload = await res.json().catch(() => null);
+          const message = errorPayload?.message || `Error al actualizar la obra: ${res.status}`;
+          toast.error(message);
+          return { success: false, error: message };
         }
 
         const json = await res.json();
@@ -125,11 +135,12 @@ export function useWorks() {
 
         toast.success("Los cambios se guardaron correctamente.");
 
-        return updated;
+        return { success: true, data: updated };
       } catch (err: any) {
         console.error(err);
-        toast.error(err?.message ?? "No se pudo actualizar la obra");
-        throw err;
+        const message = err?.message ?? "No se pudo actualizar la obra";
+        toast.error(message);
+        return { success: false, error: message };
       } finally {
         setSubmitting(false);
       }

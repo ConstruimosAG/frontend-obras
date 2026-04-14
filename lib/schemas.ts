@@ -18,8 +18,15 @@ export const workSchema = z.object({
     }),
 });
 
-// Esquema para editar un trabajo (sin código)
 export const workEditSchema = z.object({
+  code: z
+    .string()
+    .min(2, "El código debe tener al menos 2 caracteres")
+    .max(20, "El código no puede exceder los 20 caracteres")
+    .regex(
+      /^[A-Za-z0-9_-]+$/,
+      "El código solo puede contener letras, números, guiones y guiones bajos",
+    ),
   quotationDeadline: z
     .string()
     .min(1, "La fecha límite de cotización es obligatoria"),

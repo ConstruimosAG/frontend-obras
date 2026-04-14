@@ -69,20 +69,22 @@ export function WorksPanel({ coordinator = true, path = "admin" }: { coordinator
     quotationDeadline: string;
     finalized?: boolean;
   }) => {
+    let result;
     if (editingWork) {
       // update
-      await updateWork(editingWork.id, {
+      result = await updateWork(editingWork.id, {
+        code: data.code,
         quotationDeadline: data.quotationDeadline,
         finalized: data.finalized,
       });
     } else {
       // create
-      await createWork({
+      result = await createWork({
         code: data.code!,
         quotationDeadline: data.quotationDeadline,
       });
     }
-    // cerrar modal lo hace el WorkModal después del await
+    return result.success;
   };
 
   return (
