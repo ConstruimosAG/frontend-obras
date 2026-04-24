@@ -541,7 +541,6 @@ export function ItemModal({
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="UND">UND</SelectItem>
-                        <SelectItem value="M">M</SelectItem>
                         <SelectItem value="M2">M2</SelectItem>
                         <SelectItem value="M3">M3</SelectItem>
                         <SelectItem value="ML">ML</SelectItem>

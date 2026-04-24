@@ -21,7 +21,6 @@ import { useQuoteItems } from "@/hooks/items/useQuoteItems";
 
 const unitOptions = [
   { value: "UND", label: "UND" },
-  { value: "M", label: "M" },
   { value: "M2", label: "M2" },
   { value: "M3", label: "M3" },
   { value: "ML", label: "ML" },
@@ -125,12 +124,12 @@ export function QuoteItemForm({
 
   const adminAmount = useMemo(() => (taxType === "aiu" ? subtotal * (administrationPerc / 100) : 0), [taxType, subtotal, administrationPerc]);
   const contingenciesAmount = useMemo(() => (taxType === "aiu" ? subtotal * (contingenciesPerc / 100) : 0), [taxType, subtotal, contingenciesPerc]);
-  
+
   const totalDirectCost = useMemo(() => subtotal + adminAmount + contingenciesAmount, [subtotal, adminAmount, contingenciesAmount]);
-  
+
   const profitAmount = useMemo(() => (taxType === "aiu" ? totalDirectCost * (profitPerc / 100) : 0), [taxType, totalDirectCost, profitPerc]);
   const ivaOnProfit = useMemo(() => (taxType === "aiu" ? profitAmount * (ivaPercent / 100) : 0), [taxType, profitAmount, ivaPercent]);
-  
+
   const taxAmount = useMemo(() => {
     if (taxType === "iva") return subtotal * (ivaPercent / 100);
     if (taxType === "aiu") return adminAmount + contingenciesAmount + profitAmount + ivaOnProfit;
@@ -197,7 +196,7 @@ export function QuoteItemForm({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-8">
-      
+
       {/* ── Sección de Cotización y Materiales ── */}
       <div className="space-y-6">
         {/* Contratista Externo (si aplica) */}
@@ -341,13 +340,13 @@ export function QuoteItemForm({
         <div className="flex items-center gap-2 border-b border-purple-100 pb-2">
           <h2 className="text-lg font-bold text-gray-800">3. Resumen</h2>
         </div>
-        
+
         <div className="bg-gray-50/50 rounded-lg p-5 space-y-3">
           <div className="flex justify-between text-xs font-bold text-gray-500">
             <span>Subtotal de ítems:</span>
             <span className="tabular-nums">${itemTotal.toLocaleString("es-CO")}</span>
           </div>
-          
+
           {taxType === "iva" && (
             <div className="flex justify-between text-xs font-bold text-purple-600">
               <span>IVA ({ivaPercent}%):</span>
@@ -379,7 +378,7 @@ export function QuoteItemForm({
               </div>
             </div>
           )}
-          
+
           <div className="flex justify-between items-center bg-purple-600 p-4 rounded-lg shadow-sm text-white mt-4">
             <span className="text-xs font-bold uppercase tracking-widest">Total Cotización</span>
             <span className="text-xl font-bold tabular-nums">

@@ -165,13 +165,13 @@ export default function ManagementQuoteForm({ params }: ManagementQuoteFormProps
   const calculateSubtotal = () => {
     if (!quote) return 0;
     if (isAG) return agEditedSubtotal;
-    
+
     const subtotal_base = Number(quote.subtotal || 0);
     const adminPct = Number(quote.administrationPercentage || 0);
     const contPct = Number(quote.contingenciesPercentage || 0);
     const profitPct = Number(quote.profitPercentage || 0);
     const isAIU = adminPct > 0 || contPct > 0 || profitPct > 0;
-    
+
     let contractorTaxes = 0;
     if (isAIU) {
       const aVal = subtotal_base * (adminPct / 100);
@@ -183,7 +183,7 @@ export default function ManagementQuoteForm({ params }: ManagementQuoteFormProps
     } else if (quote.vat && !quote.ConstruimosAG) {
       contractorTaxes = subtotal_base * 0.19;
     }
-    
+
     return subtotal_base + contractorTaxes;
   };
 
@@ -490,7 +490,6 @@ export default function ManagementQuoteForm({ params }: ManagementQuoteFormProps
                           </SelectTrigger>
                           <SelectContent>
                             <SelectItem value="UND">UND</SelectItem>
-                            <SelectItem value="M">M</SelectItem>
                             <SelectItem value="M2">M2</SelectItem>
                             <SelectItem value="M3">M3</SelectItem>
                             <SelectItem value="ML">ML</SelectItem>
