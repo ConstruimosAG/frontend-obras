@@ -172,6 +172,8 @@ export function ItemModal({
     }
   }, [formData.cantidad, formData.precioUnitario]);
 
+  const [localLoading, setLocalLoading] = useState(false);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrors({});
@@ -239,6 +241,7 @@ export function ItemModal({
         return;
       }
 
+      setLocalLoading(true);
       await onSubmit(payload);
       onOpenChange(false);
     } catch (error: any) {
@@ -253,12 +256,16 @@ export function ItemModal({
         return;
       }
       console.error(error);
+    } finally {
+      setLocalLoading(false);
     }
   };
 
   const selectedContractor = contractors.find(
     (c) => c.id.toString() === formData.contractorId
   );
+
+  const combinedSubmitting = isSubmitting || localLoading;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -350,7 +357,7 @@ export function ItemModal({
                 variant="outline"
                 onClick={() => setShowSummary(false)}
                 className="w-full sm:w-auto"
-                disabled={isSubmitting}
+                disabled={combinedSubmitting}
               >
                 Volver a editar
               </Button>
@@ -358,16 +365,19 @@ export function ItemModal({
                 type="button"
                 onClick={async () => {
                   try {
+                    setLocalLoading(true);
                     await onSubmit(pendingPayload);
                     onOpenChange(false);
                   } catch (e) {
                     console.error(e);
+                  } finally {
+                    setLocalLoading(false);
                   }
                 }}
                 className="w-full sm:w-auto bg-green-500 hover:bg-green-600 text-white flex items-center justify-center gap-2"
-                disabled={isSubmitting}
+                disabled={combinedSubmitting}
               >
-                {isSubmitting && <Loader2 className="animate-spin h-4 w-4" />}
+                {combinedSubmitting && <Loader2 className="animate-spin h-4 w-4" />}
                 Confirmar y crear ítem
               </Button>
             </DialogFooter>
@@ -401,7 +411,7 @@ export function ItemModal({
                 placeholder="Describe el ítem..."
                 rows={3}
                 aria-invalid={!!errors.description}
-                disabled={isSubmitting || isEditingQuote}
+                disabled={combinedSubmitting || isEditingQuote}
                 className={isEditing ? "bg-muted dark:text-black/80" : "dark:text-black/80"}
               />
               {errors.description && (
@@ -422,7 +432,7 @@ export function ItemModal({
                   onCheckedChange={(checked) =>
                     setFormData({ ...formData, construimosAG: checked as boolean })
                   }
-                  disabled={isSubmitting || isEditingQuote}
+                  disabled={combinedSubmitting || isEditingQuote}
                 />
                 <Label
                   htmlFor="construimosAG"
@@ -460,7 +470,7 @@ export function ItemModal({
                           setFormData({ ...formData, contractorId: value });
                         }
                       }}
-                      disabled={isSubmitting}
+                      disabled={combinedSubmitting}
                     >
                       <SelectTrigger className="w-full dark:text-black/80">
                         <SelectValue placeholder="Seleccionar contratista (opcional)" />
@@ -486,7 +496,7 @@ export function ItemModal({
                         size="icon"
                         className="h-10 w-10 shrink-0"
                         onClick={() => setFormData({ ...formData, contractorId: "" })}
-                        disabled={isSubmitting}
+                        disabled={combinedSubmitting}
                       >
                         <X className="h-4 w-4" />
                         <span className="sr-only">Limpiar selección</span>
@@ -508,7 +518,7 @@ export function ItemModal({
                     value={formData.actividad}
                     onChange={(e) => setFormData({ ...formData, actividad: e.target.value })}
                     placeholder="Descripción de la actividad..."
-                    disabled={isSubmitting}
+                    disabled={combinedSubmitting}
                   />
                   {errors.actividad && <p className="text-sm text-destructive">{errors.actividad}</p>}
                 </div>
@@ -523,7 +533,7 @@ export function ItemModal({
                       min="0"
                       value={formData.cantidad}
                       onChange={(e) => setFormData({ ...formData, cantidad: e.target.value })}
-                      disabled={isSubmitting}
+                      disabled={combinedSubmitting}
                       className="w-full"
                     />
                     {errors.cantidad && <p className="text-sm text-destructive truncate">{errors.cantidad}</p>}
@@ -534,7 +544,7 @@ export function ItemModal({
                     <Select
                       value={formData.unidad}
                       onValueChange={(value) => setFormData({ ...formData, unidad: value })}
-                      disabled={isSubmitting}
+                      disabled={combinedSubmitting}
                     >
                       <SelectTrigger className="w-full">
                         <SelectValue className="truncate" />
@@ -564,7 +574,7 @@ export function ItemModal({
                       value={formatCurrency(formData.precioUnitario)}
                       onChange={(e) => handleCurrencyChange(e, "precioUnitario")}
                       placeholder="0"
-                      disabled={isSubmitting}
+                      disabled={combinedSubmitting}
                       className="w-full font-medium"
                     />
                     {errors.precioUnitario && <p className="text-sm text-destructive truncate">{errors.precioUnitario}</p>}
@@ -589,7 +599,7 @@ export function ItemModal({
                     value={formData.materialesObservaciones}
                     onChange={(e) => setFormData({ ...formData, materialesObservaciones: e.target.value })}
                     placeholder="Materiales requeridos u observaciones adicionales..."
-                    disabled={isSubmitting}
+                    disabled={combinedSubmitting}
                     rows={2}
                   />
                 </div>
@@ -614,7 +624,7 @@ export function ItemModal({
                 }
                 placeholder="Ex: 40"
                 aria-invalid={!!errors.estimatedExecutionTime}
-                disabled={isSubmitting || isEditingQuote}
+                disabled={combinedSubmitting || isEditingQuote}
                 className={isEditing ? "bg-muted dark:text-black/80" : "dark:text-black/80"}
               />
               {errors.estimatedExecutionTime && (
@@ -635,16 +645,16 @@ export function ItemModal({
                 variant="outline"
                 onClick={() => onOpenChange(false)}
                 className="w-full sm:w-auto"
-                disabled={isSubmitting}
+                disabled={combinedSubmitting}
               >
                 Cancelar
               </Button>
               <Button
                 type="submit"
                 className="w-full sm:w-auto bg-purple-500 hover:bg-purple-600 text-white flex items-center justify-center gap-2"
-                disabled={isSubmitting}
+                disabled={combinedSubmitting}
               >
-                {isSubmitting && <Loader2 className="animate-spin h-4 w-4" />}
+                {combinedSubmitting && <Loader2 className="animate-spin h-4 w-4" />}
                 {isEditingQuote
                   ? "Guardar cotización"
                   : isEditing

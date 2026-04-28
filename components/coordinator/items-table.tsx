@@ -2079,6 +2079,7 @@ export function ItemsTable({
         item={selectedItem}
         workId={work.id}
         onSubmit={handleEditSubmit}
+        isSubmitting={submitting}
         coordinator={coordinator}
         contractors={contractors}
         editingQuoteItem={editingQuoteItem}
