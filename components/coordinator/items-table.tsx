@@ -1171,8 +1171,21 @@ export function ItemsTable({
                                                     return val > 0 ? val.toLocaleString("es-CO") : "";
                                                   })()}
                                                   onChange={(e) => {
-                                                    const rawValue = e.target.value.replace(/\D/g, "");
-                                                    const val = Number(rawValue) || 0;
+                                                    let valStr = e.target.value;
+                                                    let filtered = valStr.replace(/[^0-9.,]/g, "");
+                                                    const lastDot = filtered.lastIndexOf(".");
+                                                    const lastComma = filtered.lastIndexOf(",");
+                                                    const lastSep = Math.max(lastDot, lastComma);
+                                                    
+                                                    let val = 0;
+                                                    if (lastSep !== -1) {
+                                                      const intP = filtered.substring(0, lastSep).replace(/[.,]/g, "");
+                                                      const decP = filtered.substring(lastSep + 1).replace(/[.,]/g, "");
+                                                      val = parseFloat(intP + "." + decP) || 0;
+                                                    } else {
+                                                      val = parseFloat(filtered) || 0;
+                                                    }
+
                                                     setBulkEdits(prev => ({
                                                       ...prev,
                                                       [finalizedQuote.id]: {
@@ -1573,8 +1586,21 @@ export function ItemsTable({
                                                   return val > 0 ? val.toLocaleString("es-CO") : "";
                                                 })()}
                                                 onChange={(e) => {
-                                                  const rawValue = e.target.value.replace(/\D/g, "");
-                                                  const val = Number(rawValue) || 0;
+                                                  let valStr = e.target.value;
+                                                  let filtered = valStr.replace(/[^0-9.,]/g, "");
+                                                  const lastDot = filtered.lastIndexOf(".");
+                                                  const lastComma = filtered.lastIndexOf(",");
+                                                  const lastSep = Math.max(lastDot, lastComma);
+                                                  
+                                                  let val = 0;
+                                                  if (lastSep !== -1) {
+                                                    const intP = filtered.substring(0, lastSep).replace(/[.,]/g, "");
+                                                    const decP = filtered.substring(lastSep + 1).replace(/[.,]/g, "");
+                                                    val = parseFloat(intP + "." + decP) || 0;
+                                                  } else {
+                                                    val = parseFloat(filtered) || 0;
+                                                  }
+
                                                   setBulkEdits((prev) => ({
                                                     ...prev,
                                                     [finalizedQuote.id]: {

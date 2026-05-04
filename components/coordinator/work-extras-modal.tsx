@@ -168,6 +168,7 @@ export function WorkExtrasModal({
                                         <div className="flex items-center gap-2">
                                             <Input
                                                 type="number"
+                                                step="any"
                                                 min="0"
                                                 value={formData[tipo.key as keyof typeof formData] as string}
                                                 onChange={(e) =>
@@ -203,6 +204,7 @@ export function WorkExtrasModal({
                                     <div className="flex items-center gap-2 ml-4">
                                         <Input
                                             type="number"
+                                            step="any"
                                             min="0"
                                             value={formData.otroPersonalQuantity}
                                             onChange={(e) =>
@@ -250,6 +252,7 @@ export function WorkExtrasModal({
                                         <div className="flex items-center gap-2">
                                             <Input
                                                 type="number"
+                                                step="any"
                                                 min="0"
                                                 value={formData[tipo.key as keyof typeof formData] as string}
                                                 onChange={(e) =>
@@ -285,6 +288,7 @@ export function WorkExtrasModal({
                                     <div className="flex items-center gap-2 ml-4">
                                         <Input
                                             type="number"
+                                            step="any"
                                             min="0"
                                             value={formData.otroExtrasQuantity}
                                             onChange={(e) =>

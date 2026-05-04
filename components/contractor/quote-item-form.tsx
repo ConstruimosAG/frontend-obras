@@ -111,11 +111,38 @@ export function QuoteItemForm({
     setDisplay: (v: string) => void,
     setNumeric: (v: number) => void
   ) => {
-    const digitsOnly = value.replace(/[^0-9]/g, "");
-    const numeric = Number(digitsOnly) || 0;
-    setNumeric(numeric);
-    const formatted = numeric > 0 ? numeric.toLocaleString("es-CO") : "";
-    setDisplay(formatted);
+    // 1. Convert comma to dot for internal processing
+    let normalized = value.replace(/,/g, ".");
+    
+    // 2. Remove dots that are likely thousand separators (followed by 3 digits)
+    // but only if there is another dot later (the decimal one)
+    // Actually, a simpler way: remove all dots, then find the last comma/dot from original
+    // and treat it as decimal.
+    
+    // Let's go with a simpler, more robust approach for this app:
+    // Strip everything except digits and the LAST dot or comma
+    let filtered = value.replace(/[^0-9.,]/g, "");
+    
+    // Find the last separator
+    const lastDot = filtered.lastIndexOf(".");
+    const lastComma = filtered.lastIndexOf(",");
+    const lastSeparatorIndex = Math.max(lastDot, lastComma);
+    
+    let resultNumeric = 0;
+    let resultDisplay = filtered;
+    
+    if (lastSeparatorIndex !== -1) {
+      const integerPart = filtered.substring(0, lastSeparatorIndex).replace(/[.,]/g, "");
+      const decimalPart = filtered.substring(lastSeparatorIndex + 1).replace(/[.,]/g, "");
+      const normalizedValue = integerPart + "." + decimalPart;
+      resultNumeric = parseFloat(normalizedValue) || 0;
+      // We keep the display as is (filtered) so the user can see what they are typing
+    } else {
+      resultNumeric = parseFloat(filtered) || 0;
+    }
+    
+    setNumeric(resultNumeric);
+    setDisplay(filtered);
   };
 
   // Calculations

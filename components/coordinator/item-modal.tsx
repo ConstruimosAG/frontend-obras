@@ -146,26 +146,50 @@ export function ItemModal({
 
   const formatCurrency = (value: string | number) => {
     if (!value && value !== 0) return "";
-    let strValue = value.toString().replace(/\D/g, "");
-    if (strValue === "") return "";
+    // Ensure we are working with a string that has . as decimal separator for parseFloat
+    let strValue = value.toString().replace(/,/g, ".");
     const num = parseFloat(strValue);
     if (isNaN(num)) return "";
     return new Intl.NumberFormat("es-CO", {
       minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
+      maximumFractionDigits: 2,
     }).format(num);
   };
 
   const handleCurrencyChange = (e: React.ChangeEvent<HTMLInputElement>, field: string) => {
-    let value = e.target.value.replace(/\D/g, "");
-    setFormData(prev => ({ ...prev, [field]: value }));
+    // Allow digits, dot and comma. Dot and comma are treated as decimals.
+    // Thousand separators (dots in es-CO) are stripped.
+    let val = e.target.value;
+    
+    // If there's a comma, dots are definitely thousands.
+    // If there's only dots, the last one might be a decimal or a thousand.
+    // To be safe and simple: strip everything except digits and the LAST separator.
+    let filtered = val.replace(/[^0-9.,]/g, "");
+    const lastDot = filtered.lastIndexOf(".");
+    const lastComma = filtered.lastIndexOf(",");
+    const lastSeparatorIndex = Math.max(lastDot, lastComma);
+
+    let finalValue = "";
+    if (lastSeparatorIndex !== -1) {
+      const integerPart = filtered.substring(0, lastSeparatorIndex).replace(/[.,]/g, "");
+      const decimalPart = filtered.substring(lastSeparatorIndex + 1).replace(/[.,]/g, "");
+      finalValue = integerPart + "." + decimalPart;
+    } else {
+      finalValue = filtered;
+    }
+
+    setFormData(prev => ({ ...prev, [field]: finalValue }));
   };
 
   // Recalculate Total
   useEffect(() => {
     if (formData.cantidad && formData.precioUnitario) {
-      const cant = Number.parseFloat(formData.cantidad);
-      const pu = Number.parseFloat(formData.precioUnitario);
+      // Normalize cantidad and precioUnitario (replace comma with dot if any)
+      const cantStr = formData.cantidad.toString().replace(/,/g, ".");
+      const puStr = formData.precioUnitario.toString().replace(/,/g, ".");
+      
+      const cant = Number.parseFloat(cantStr);
+      const pu = Number.parseFloat(puStr);
       if (!isNaN(cant) && !isNaN(pu)) {
         setFormData(prev => ({ ...prev, precioTotal: (cant * pu).toString() }));
       }
@@ -213,12 +237,17 @@ export function ItemModal({
       };
 
       if ((formData.construimosAG || isEditingQuote)) {
+        // Normalize for API
+        const cantStr = formData.cantidad.toString().replace(/,/g, ".");
+        const puStr = formData.precioUnitario.toString().replace(/,/g, ".");
+        const ptStr = formData.precioTotal.toString().replace(/,/g, ".");
+
         payload.quoteData = {
           actividad: formData.actividad,
           unidad: formData.unidad,
-          cantidad: Number.parseFloat(formData.cantidad),
-          precioUnitario: Number.parseFloat(formData.precioUnitario),
-          precioTotal: Number.parseFloat(formData.precioTotal || "0"),
+          cantidad: Number.parseFloat(cantStr),
+          precioUnitario: Number.parseFloat(puStr),
+          precioTotal: Number.parseFloat(ptStr || "0"),
           materialesObservaciones: formData.materialesObservaciones,
         };
       }
@@ -528,11 +557,23 @@ export function ItemModal({
                     <Label htmlFor="cantidad" className="truncate block">Cantidad <span className="text-red-500">*</span></Label>
                     <Input
                       id="cantidad"
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      value={formData.cantidad}
-                      onChange={(e) => setFormData({ ...formData, cantidad: e.target.value })}
+                      type="text"
+                      value={formData.cantidad.toString().replace(/\./g, ",")}
+                      onChange={(e) => {
+                        let val = e.target.value.replace(/[^0-9.,]/g, "");
+                        const lastDot = val.lastIndexOf(".");
+                        const lastComma = val.lastIndexOf(",");
+                        const lastSep = Math.max(lastDot, lastComma);
+                        
+                        if (lastSep !== -1) {
+                          const intP = val.substring(0, lastSep).replace(/[.,]/g, "");
+                          const decP = val.substring(lastSep + 1).replace(/[.,]/g, "");
+                          setFormData({ ...formData, cantidad: intP + "." + decP });
+                        } else {
+                          setFormData({ ...formData, cantidad: val });
+                        }
+                      }}
+                      placeholder="0,00"
                       disabled={combinedSubmitting}
                       className="w-full"
                     />
@@ -614,6 +655,7 @@ export function ItemModal({
               <Input
                 id="estimatedExecutionTime"
                 type="number"
+                step="any"
                 min="1"
                 value={formData.estimatedExecutionTime}
                 onChange={(e) =>
