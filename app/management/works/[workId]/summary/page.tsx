@@ -120,14 +120,13 @@ export default function WorkSummaryPage({ params }: WorkSummaryPageProps) {
                 if (isAIU) {
                     const aVal = subtotal_base * (adminPct / 100);
                     const iVal = subtotal_base * (contPct / 100);
-                    const subAI = subtotal_base + aVal + iVal;
-                    const uVal = subAI * (profitPct / 100);
+                    const uVal = subtotal_base * (profitPct / 100);
                     const vatOnU = finalizedQuote.vat ? (uVal * 0.19) : 0;
                     contractorTaxes = aVal + iVal + uVal + vatOnU;
                 } else if (finalizedQuote.vat && !finalizedQuote.ConstruimosAG) {
                     contractorTaxes = subtotal_base * 0.19;
                 }
-                
+
                 const activityTotalAdjusted = (subtotal_base + contractorTaxes) * factor;
                 const materialCostAdjusted = Number(finalizedQuote?.materialCost || 0) * factor;
 
@@ -156,14 +155,13 @@ export default function WorkSummaryPage({ params }: WorkSummaryPageProps) {
                 if (isAIU) {
                     const aVal = subtotal_base * (adminPct / 100);
                     const iVal = subtotal_base * (contPct / 100);
-                    const subAI = subtotal_base + aVal + iVal;
-                    const uVal = subAI * (profitPct / 100);
+                    const uVal = subtotal_base * (profitPct / 100);
                     const vatOnU = finalizedQuote.vat ? (uVal * 0.19) : 0;
                     contractorTaxes = aVal + iVal + uVal + vatOnU;
                 } else if (finalizedQuote.vat && !finalizedQuote.ConstruimosAG) {
                     contractorTaxes = subtotal_base * 0.19;
                 }
-                
+
                 const activityTotalRaw = subtotal_base + contractorTaxes;
                 const materialCostRaw = Number(finalizedQuote.materialCost || 0);
 
@@ -178,7 +176,7 @@ export default function WorkSummaryPage({ params }: WorkSummaryPageProps) {
         const admin = (administrationPercentage / 100) * subtotal;
         const contingencies = (contingenciesPercentage / 100) * subtotal;
         const directCost = subtotal + admin + contingencies;
-        const profit = (profitPercentage / 100) * directCost;
+        const profit = (profitPercentage / 100) * subtotal;
         const ivaOnProfit = profit * 0.19;
         const total = directCost + profit + ivaOnProfit;
         return { subtotal, admin, contingencies, directCost, profit, ivaOnProfit, total };

@@ -154,7 +154,7 @@ export function QuoteItemForm({
 
   const totalDirectCost = useMemo(() => subtotal + adminAmount + contingenciesAmount, [subtotal, adminAmount, contingenciesAmount]);
 
-  const profitAmount = useMemo(() => (taxType === "aiu" ? totalDirectCost * (profitPerc / 100) : 0), [taxType, totalDirectCost, profitPerc]);
+  const profitAmount = useMemo(() => (taxType === "aiu" ? subtotal * (profitPerc / 100) : 0), [taxType, subtotal, profitPerc]);
   const ivaOnProfit = useMemo(() => (taxType === "aiu" ? profitAmount * (ivaPercent / 100) : 0), [taxType, profitAmount, ivaPercent]);
 
   const taxAmount = useMemo(() => {
