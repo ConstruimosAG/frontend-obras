@@ -93,8 +93,8 @@ export function QuoteItemForm({
   const [materialsDesc, setMaterialsDesc] = useState(initMaterials?.description || "");
 
   // Display State
-  const [measureDisplay, setMeasureDisplay] = useState(initialSubq.measure > 0 ? initialSubq.measure.toLocaleString("es-CO") : "");
-  const [unitValueDisplay, setUnitValueDisplay] = useState(initialSubq.unitValue > 0 ? initialSubq.unitValue.toLocaleString("es-CO") : "");
+  const [measureDisplay, setMeasureDisplay] = useState(initialSubq.measure > 0 ? String(initialSubq.measure) : "");
+  const [unitValueDisplay, setUnitValueDisplay] = useState(initialSubq.unitValue > 0 ? String(initialSubq.unitValue) : "");
 
   // Tax/AIU State
   const [administrationPerc, setAdministrationPerc] = useState(initAdmin);
@@ -107,42 +107,53 @@ export function QuoteItemForm({
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const handleCostInput = (
-    value: string,
+    e: React.ChangeEvent<HTMLInputElement>,
     setDisplay: (v: string) => void,
     setNumeric: (v: number) => void
   ) => {
-    // 1. Convert comma to dot for internal processing
-    let normalized = value.replace(/,/g, ".");
-    
-    // 2. Remove dots that are likely thousand separators (followed by 3 digits)
-    // but only if there is another dot later (the decimal one)
-    // Actually, a simpler way: remove all dots, then find the last comma/dot from original
-    // and treat it as decimal.
-    
-    // Let's go with a simpler, more robust approach for this app:
-    // Strip everything except digits and the LAST dot or comma
-    let filtered = value.replace(/[^0-9.,]/g, "");
-    
-    // Find the last separator
-    const lastDot = filtered.lastIndexOf(".");
-    const lastComma = filtered.lastIndexOf(",");
-    const lastSeparatorIndex = Math.max(lastDot, lastComma);
-    
-    let resultNumeric = 0;
-    let resultDisplay = filtered;
-    
-    if (lastSeparatorIndex !== -1) {
-      const integerPart = filtered.substring(0, lastSeparatorIndex).replace(/[.,]/g, "");
-      const decimalPart = filtered.substring(lastSeparatorIndex + 1).replace(/[.,]/g, "");
-      const normalizedValue = integerPart + "." + decimalPart;
-      resultNumeric = parseFloat(normalizedValue) || 0;
-      // We keep the display as is (filtered) so the user can see what they are typing
+    const input = e.target;
+    // Los puntos son SIEMPRE separadores de miles (se eliminan).
+    // La coma es el único separador decimal válido (convención es-CO).
+    const raw = input.value.replace(/\./g, "").replace(/[^0-9,]/g, "");
+    const commaIdx = raw.indexOf(",");
+
+    let intStr: string;
+    let decStr = "";
+    let hasDecimal = false;
+
+    if (commaIdx !== -1) {
+      intStr = raw.substring(0, commaIdx);
+      decStr = raw.substring(commaIdx + 1).replace(/,/g, "");
+      hasDecimal = true;
     } else {
-      resultNumeric = parseFloat(filtered) || 0;
+      intStr = raw;
     }
-    
-    setNumeric(resultNumeric);
-    setDisplay(filtered);
+
+    const intNum = Number(intStr) || 0;
+    const numeric = hasDecimal ? parseFloat(`${intStr || "0"}.${decStr}`) || 0 : intNum;
+    setNumeric(numeric);
+
+    const formattedInt = intNum > 0
+      ? intNum.toLocaleString("es-CO", { minimumFractionDigits: 0, maximumFractionDigits: 0 })
+      : (intStr === "" ? "" : "0");
+
+    const displayValue = hasDecimal ? `${formattedInt},${decStr}` : formattedInt;
+    setDisplay(displayValue);
+
+    requestAnimationFrame(() => {
+      input.selectionStart = displayValue.length;
+      input.selectionEnd = displayValue.length;
+    });
+  };
+
+  const handleCostFocus = (numeric: number, setDisplay: (v: string) => void) => {
+    if (numeric === 0) {
+      setDisplay("");
+    } else if (Number.isInteger(numeric)) {
+      setDisplay(String(numeric));
+    } else {
+      setDisplay(String(numeric).replace(".", ","));
+    }
   };
 
   // Calculations
@@ -266,7 +277,8 @@ export function QuoteItemForm({
               <Label className="text-[10px] font-bold text-gray-400 uppercase">Cantidad</Label>
               <Input
                 value={measureDisplay}
-                onChange={(e) => handleCostInput(e.target.value, setMeasureDisplay, setMeasure)}
+                onChange={(e) => handleCostInput(e, setMeasureDisplay, setMeasure)}
+                onFocus={() => handleCostFocus(measure, setMeasureDisplay)}
                 className={`h-9 text-sm ${errors.measure ? "border-red-500" : "border-gray-200 focus:border-purple-400 focus:ring-0"}`}
               />
             </div>
@@ -289,7 +301,8 @@ export function QuoteItemForm({
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs">$</span>
                 <Input
                   value={unitValueDisplay}
-                  onChange={(e) => handleCostInput(e.target.value, setUnitValueDisplay, setUnitValue)}
+                  onChange={(e) => handleCostInput(e, setUnitValueDisplay, setUnitValue)}
+                  onFocus={() => handleCostFocus(unitValue, setUnitValueDisplay)}
                   className="h-9 text-sm pl-7 border-gray-200 focus:border-purple-400 focus:ring-0"
                 />
               </div>

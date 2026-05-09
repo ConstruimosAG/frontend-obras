@@ -132,26 +132,33 @@ export default function ManagementQuoteForm({ params }: ManagementQuoteFormProps
     return Number.parseFloat(cleaned) || 0;
   };
 
-  // Format with thousands separator in real time while typing
   const handleCostInput = (
-    value: string,
+    e: React.ChangeEvent<HTMLInputElement>,
     setDisplay: (v: string) => void,
     setNumeric: (v: number) => void
   ) => {
-    // Strip all non-digit and non-comma chars, keep only digits
-    const digitsOnly = value.replace(/[^0-9]/g, "");
+    const input = e.target;
+    const digitsOnly = input.value.replace(/[^0-9]/g, "");
     const numeric = Number(digitsOnly) || 0;
     setNumeric(numeric);
-    // Format with thousands dots immediately
     const formatted = numeric > 0
       ? numeric.toLocaleString("es-CO", { minimumFractionDigits: 0, maximumFractionDigits: 0 })
       : "";
     setDisplay(formatted);
+    // Siempre mover cursor al final para evitar que el punto de miles quede en posición errónea
+    requestAnimationFrame(() => {
+      input.selectionStart = formatted.length;
+      input.selectionEnd = formatted.length;
+    });
   };
 
-  // No-op blur (already formatted in real time)
   const handleCostBlur = (_numeric: number, _setDisplay: (v: string) => void) => {
-    // nothing needed
+    // El formato ya se aplica en tiempo real en handleCostInput
+  };
+
+  // Al hacer foco muestra dígitos crudos para que el parser no confunda el punto de miles con decimal
+  const handleCostFocus = (numeric: number, setDisplay: (v: string) => void) => {
+    setDisplay(numeric > 0 ? String(numeric) : "");
   };
 
   // --- Derived values ---
@@ -510,8 +517,9 @@ export default function ManagementQuoteForm({ params }: ManagementQuoteFormProps
                           type="text"
                           value={editCantidadDisplay}
                           onChange={(e) =>
-                            handleCostInput(e.target.value, setEditCantidadDisplay, setEditCantidad)
+                            handleCostInput(e, setEditCantidadDisplay, setEditCantidad)
                           }
+                          onFocus={() => handleCostFocus(editCantidad, setEditCantidadDisplay)}
                           onBlur={() => handleCostBlur(editCantidad, setEditCantidadDisplay)}
                           placeholder="0"
                         />
@@ -526,8 +534,9 @@ export default function ManagementQuoteForm({ params }: ManagementQuoteFormProps
                             type="text"
                             value={editPrecioUnitarioDisplay}
                             onChange={(e) =>
-                              handleCostInput(e.target.value, setEditPrecioUnitarioDisplay, setEditPrecioUnitario)
+                              handleCostInput(e, setEditPrecioUnitarioDisplay, setEditPrecioUnitario)
                             }
+                            onFocus={() => handleCostFocus(editPrecioUnitario, setEditPrecioUnitarioDisplay)}
                             onBlur={() => handleCostBlur(editPrecioUnitario, setEditPrecioUnitarioDisplay)}
                             placeholder="0"
                             className="pl-7"
@@ -661,8 +670,9 @@ export default function ManagementQuoteForm({ params }: ManagementQuoteFormProps
                       type="text"
                       value={materialCostDisplay}
                       onChange={(e) =>
-                        handleCostInput(e.target.value, setMaterialCostDisplay, setMaterialCost)
+                        handleCostInput(e, setMaterialCostDisplay, setMaterialCost)
                       }
+                      onFocus={() => handleCostFocus(materialCost, setMaterialCostDisplay)}
                       onBlur={() => handleCostBlur(materialCost, setMaterialCostDisplay)}
                       placeholder="0"
                       className="pl-7"
