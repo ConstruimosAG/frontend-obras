@@ -24,7 +24,7 @@ export function WorkCard({ work, onEdit, onDelete, onClick }: WorkCardProps) {
 
   const handleEditClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    onEdit(work);
+    if (onEdit) onEdit(work);
   };
 
   const handleDeleteClick = (e: React.MouseEvent) => {
