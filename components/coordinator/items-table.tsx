@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import {
   Plus,
@@ -23,7 +23,23 @@ import {
   DollarSign,
   Loader2,
   Save,
+  GripVertical,
 } from "lucide-react";
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  verticalListSortingStrategy,
+  useSortable,
+  arrayMove,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -58,6 +74,45 @@ import { toast } from "sonner";
 import type { Item, Work } from "@/lib/types";
 import { useUsers } from "@/hooks/users/useUsers";
 import { useQuoteItems } from "@/hooks/items/useQuoteItems";
+
+function SortableTableRow({
+  id,
+  isDragEnabled,
+  className,
+  children,
+}: {
+  id: number;
+  isDragEnabled: boolean;
+  className?: string;
+  children: React.ReactNode;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
+  return (
+    <tr
+      ref={setNodeRef}
+      style={{
+        transform: CSS.Transform.toString(transform),
+        transition,
+        opacity: isDragging ? 0.5 : 1,
+      }}
+      {...attributes}
+      className={className}
+    >
+      {isDragEnabled && (
+        <td className="border border-border py-2 w-8 text-center">
+          <button
+            {...listeners}
+            className="cursor-grab active:cursor-grabbing p-1 text-muted-foreground hover:text-foreground inline-flex"
+            title="Arrastrar para reordenar"
+          >
+            <GripVertical className="h-4 w-4" />
+          </button>
+        </td>
+      )}
+      {children}
+    </tr>
+  );
+}
 
 interface ItemsTableProps {
   work: Work;
@@ -97,6 +152,15 @@ export function ItemsTable({
   const { users, currentUser } = useUsers();
   const contractors = users.filter((u) => u.role === "contractor");
 
+  // Estados drag & drop
+  const [localOrder, setLocalOrder] = useState<Record<string, number[]>>({});
+  const [pendingTitles, setPendingTitles] = useState<Set<string>>(new Set());
+  const [savingReorderTitle, setSavingReorderTitle] = useState<string | null>(null);
+
+  const dndSensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
+  );
+
   // Estados masivos
   const [isBulkEditing, setIsBulkEditing] = useState(false);
   const [bulkEdits, setBulkEdits] = useState<Record<number, { materialCost: number; managementPercentage: number }>>({});
@@ -118,7 +182,7 @@ export function ItemsTable({
     paymentTerms: quoteWork?.subtotal > 10000000 ? "50% ANTICIPO, 50% CONTRA ENTREGA" : "CONTRA ENTREGA",
   });
 
-  const { items, submitting: hookSubmitting, createItem, updateItem, toggleActive, deleteItem, fetchItems } =
+  const { items, submitting: hookSubmitting, createItem, updateItem, toggleActive, deleteItem, fetchItems, reorderItems } =
     useItems(work.id);
   const { updateQuoteItem } = useQuoteItems();
 
@@ -126,6 +190,13 @@ export function ItemsTable({
   const submitting = hookSubmitting || localSubmitting;
 
   const isAdmin = !coordinator && !management;
+  const canReorder = (isAdmin || !work.finalized) && !management;
+
+  // Limpiar orden local cuando llegan ítems frescos del servidor
+  useEffect(() => {
+    setLocalOrder({});
+    setPendingTitles(new Set());
+  }, [items]);
 
   // Validar condiciones para PDF
   useEffect(() => {
@@ -476,15 +547,9 @@ export function ItemsTable({
   };
 
   const filteredItems = useMemo(() => {
-    let result = items;
-    if (searchTerm.trim()) {
-      const term = searchTerm.toLowerCase();
-      result = items.filter((item: Item) => {
-        return item.description.toLowerCase().includes(term);
-      });
-    }
-    // Reverse order
-    return [...result].reverse();
+    if (!searchTerm.trim()) return items;
+    const term = searchTerm.toLowerCase();
+    return items.filter((item: Item) => item.description.toLowerCase().includes(term));
   }, [items, searchTerm]);
 
   const groupedItems = useMemo(() => {
@@ -500,6 +565,53 @@ export function ItemsTable({
     });
     return groups;
   }, [filteredItems, localTitles]);
+
+  const getOrderedItems = useCallback(
+    (group: { title: string; items: Item[] }) => {
+      const order = localOrder[group.title];
+      if (!order) return group.items;
+      return [...group.items].sort((a, b) => order.indexOf(a.id) - order.indexOf(b.id));
+    },
+    [localOrder]
+  );
+
+  const handleDragEnd = useCallback(
+    (event: DragEndEvent, title: string) => {
+      const { active, over } = event;
+      if (!over || active.id === over.id) return;
+      const group = groupedItems.find((g) => g.title === title);
+      if (!group) return;
+      const currentItems = getOrderedItems(group);
+      const currentIds = currentItems.map((i) => i.id);
+      const oldIndex = currentIds.indexOf(Number(active.id));
+      const newIndex = currentIds.indexOf(Number(over.id));
+      const newIds = arrayMove(currentIds, oldIndex, newIndex);
+      setLocalOrder((prev) => ({ ...prev, [title]: newIds }));
+      setPendingTitles((prev) => new Set([...prev, title]));
+    },
+    [groupedItems, getOrderedItems]
+  );
+
+  const handleSaveOrder = useCallback(
+    async (title: string) => {
+      const group = groupedItems.find((g) => g.title === title);
+      if (!group) return;
+      const order = localOrder[title];
+      if (!order) return;
+      try {
+        setSavingReorderTitle(title);
+        await reorderItems(order.map((id, index) => ({ id, sortOrder: index })));
+        setLocalOrder((prev) => { const next = { ...prev }; delete next[title]; return next; });
+        setPendingTitles((prev) => { const next = new Set(prev); next.delete(title); return next; });
+        toast.success(`Orden guardado para "${title}"`);
+      } catch {
+        // reorderItems ya muestra el toast de error
+      } finally {
+        setSavingReorderTitle(null);
+      }
+    },
+    [groupedItems, localOrder, reorderItems]
+  );
 
   const handleCreateItem = (title: string = "") => {
     setSelectedItem(null);
@@ -1091,14 +1203,31 @@ export function ItemsTable({
                   )}
                 </div>
                 {(isAdmin || !work.finalized) && !management && (
-                  <Button
-                    size="sm"
-                    onClick={() => handleCreateItem(group.title)}
-                    className="bg-green-500 hover:bg-green-600 text-white h-7 px-2"
-                  >
-                    <Plus className="h-4 w-4 mr-1" />
-                    Ítem
-                  </Button>
+                  <div className="flex items-center gap-2">
+                    {pendingTitles.has(group.title) && (
+                      <Button
+                        size="sm"
+                        disabled={savingReorderTitle === group.title}
+                        onClick={() => handleSaveOrder(group.title)}
+                        className="bg-amber-500 hover:bg-amber-600 text-white h-7 px-2"
+                      >
+                        {savingReorderTitle === group.title ? (
+                          <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
+                        ) : (
+                          <Save className="h-3.5 w-3.5 mr-1" />
+                        )}
+                        Guardar orden
+                      </Button>
+                    )}
+                    <Button
+                      size="sm"
+                      onClick={() => handleCreateItem(group.title)}
+                      className="bg-green-500 hover:bg-green-600 text-white h-7 px-2"
+                    >
+                      <Plus className="h-4 w-4 mr-1" />
+                      Ítem
+                    </Button>
+                  </div>
                 )}
               </div>
 
@@ -1108,9 +1237,15 @@ export function ItemsTable({
                 <>
                   {/* Desktop Table */}
                   <div className="hidden md:block rounded-lg overflow-x-auto border border-border">
+                    <DndContext
+                      sensors={dndSensors}
+                      collisionDetection={closestCenter}
+                      onDragEnd={(e) => handleDragEnd(e, group.title)}
+                    >
                     <Table className="border-collapse w-full">
                       <TableHeader>
                         <TableRow className="bg-muted/60">
+                          {canReorder && <TableHead className="border border-border w-8" />}
                           <TableHead className="border border-border w-48 min-w-[160px] text-xs text-center">Descripción</TableHead>
                           <TableHead className="border border-border w-32 text-xs text-center whitespace-nowrap">Personal</TableHead>
                           <TableHead className="border border-border w-28 text-xs text-center whitespace-nowrap">Tiempo Est.</TableHead>
@@ -1133,10 +1268,14 @@ export function ItemsTable({
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {group.items.map((item: Item) => {
+                        <SortableContext
+                          items={getOrderedItems(group).map((i) => i.id)}
+                          strategy={verticalListSortingStrategy}
+                        >
+                        {getOrderedItems(group).map((item: Item) => {
                           const isFinished = hasFinishedQuotation(item);
                           return (
-                            <TableRow key={item.id} className="hover:bg-muted/30">
+                            <SortableTableRow key={item.id} id={item.id} isDragEnabled={canReorder} className="hover:bg-muted/30">
                               <TableCell className="border border-border align-middle py-2 min-w-[200px]">
                                 <p className="font-medium text-xs break-words whitespace-normal text-left">{item.description}</p>
                               </TableCell>
@@ -1491,16 +1630,18 @@ export function ItemsTable({
                                   )}
                                 </div>
                               </TableCell>
-                            </TableRow>
+                            </SortableTableRow>
                           );
                         })}
+                        </SortableContext>
                       </TableBody>
                     </Table>
+                    </DndContext>
                   </div>
 
                   {/* Mobile Cards */}
                   <div className="md:hidden space-y-3">
-                    {group.items.map((item: Item) => {
+                    {getOrderedItems(group).map((item: Item) => {
                       const isFinished = hasFinishedQuotation(item);
                       return (
                         <div key={item.id} className="border rounded-lg bg-card p-4 space-y-3">

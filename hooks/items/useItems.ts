@@ -162,6 +162,35 @@ export function useItems(workId?: number) {
     [updateItem],
   );
 
+  const reorderItems = useCallback(
+    async (payload: { id: number; sortOrder: number }[]) => {
+      try {
+        if (!baseUrl) throw new Error("NEXT_PUBLIC_BACKEND_URL is not defined");
+        const res = await fetchClient(`${baseUrl}/api/items/reorder`, {
+          method: "PATCH",
+          body: JSON.stringify({ items: payload }),
+        });
+        if (!res.ok) {
+          const text = await res.text().catch(() => null);
+          throw new Error(`Error reordering items: ${res.status} ${text ?? ""}`);
+        }
+        setItems((prev) => {
+          const orderMap = new Map(payload.map(({ id, sortOrder }) => [id, sortOrder]));
+          return [...prev].sort((a, b) => {
+            const sa = orderMap.get(a.id) ?? a.sortOrder ?? 0;
+            const sb = orderMap.get(b.id) ?? b.sortOrder ?? 0;
+            return sa - sb;
+          });
+        });
+      } catch (err: any) {
+        console.error(err);
+        toast.error(err?.message ?? "No se pudo guardar el orden");
+        throw err;
+      }
+    },
+    [baseUrl],
+  );
+
   const deleteItem = useCallback(
     async (id: number | string) => {
       setSubmitting(true);
@@ -202,5 +231,6 @@ export function useItems(workId?: number) {
     updateItem,
     toggleActive,
     deleteItem,
+    reorderItems,
   };
 }

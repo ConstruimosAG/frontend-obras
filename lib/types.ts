@@ -26,6 +26,7 @@ export interface Item {
   updatedById?: number;
   quoteItems?: QuoteItem[];
   title?: string | null;
+  sortOrder?: number;
   work?: Work;
 }
 
