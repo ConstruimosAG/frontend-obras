@@ -111,19 +111,36 @@ export function ItemModal({
         materialesObservaciones: materialsData?.description || "",
       });
     } else if (item) {
+      // Buscar si tiene una cotización inicial (referencia o ConstruimosAG)
+      const initialQuote = item.quoteItems?.find((q: any) => !q.assignedContractorId && !q.ConstruimosAG)
+                        || item.quoteItems?.find((q: any) => q.ConstruimosAG);
+
+      let subq: any = {};
+      let materialsData: any = {};
+      
+      if (initialQuote) {
+        let subqData = initialQuote.subquotations;
+        if (typeof subqData === "string") try { subqData = JSON.parse(subqData); } catch (e) { subqData = {}; }
+        subq = subqData?.item_1 || {};
+        
+        let mats = initialQuote.materials;
+        if (typeof mats === "string") try { mats = JSON.parse(mats); } catch (e) { mats = {}; }
+        materialsData = mats || {};
+      }
+
       setFormData({
         title: item.title || "",
         description: item.description,
         estimatedExecutionTime: item.estimatedExecutionTime?.toString() || "",
         contractorId: item.contractorId?.toString() || "",
         active: item.active,
-        construimosAG: false,
-        actividad: "",
-        unidad: "UND",
-        cantidad: "",
-        precioUnitario: "",
-        precioTotal: "",
-        materialesObservaciones: "",
+        construimosAG: initialQuote?.ConstruimosAG ?? false,
+        actividad: subq.description || "",
+        unidad: subq.unit || "UND",
+        cantidad: subq.measure?.toString() || "",
+        precioUnitario: subq.unitValue?.toString() || "",
+        precioTotal: subq.totalValue?.toString() || "",
+        materialesObservaciones: materialsData?.description || "",
       });
     } else {
       setFormData({
@@ -203,17 +220,18 @@ export function ItemModal({
     setErrors({});
 
     try {
-      if (formData.construimosAG || isEditingQuote) {
+      // Validaciones si se llenan campos de cotización
+      if (formData.actividad.trim() || formData.cantidad || formData.precioUnitario) {
         if (!formData.actividad.trim()) {
-          setErrors(prev => ({ ...prev, actividad: "La actividad es obligatoria" }));
+          setErrors(prev => ({ ...prev, actividad: "La actividad es obligatoria si se ingresa información de cotización" }));
           return;
         }
-        if (!formData.cantidad || Number.parseFloat(formData.cantidad) <= 0) {
+        if (formData.cantidad && Number.parseFloat(formData.cantidad.toString().replace(/,/g, ".")) <= 0) {
           setErrors(prev => ({ ...prev, cantidad: "La cantidad debe ser mayor a 0" }));
           return;
         }
-        if (!formData.precioUnitario || Number.parseFloat(formData.precioUnitario) <= 0) {
-          setErrors(prev => ({ ...prev, precioUnitario: "El precio unitario debe ser mayor a 0" }));
+        if (formData.construimosAG && (!formData.precioUnitario || Number.parseFloat(formData.precioUnitario.toString().replace(/,/g, ".")) <= 0)) {
+          setErrors(prev => ({ ...prev, precioUnitario: "El precio unitario es obligatorio para Construimos AG" }));
           return;
         }
       }
@@ -236,7 +254,7 @@ export function ItemModal({
         construimosAG: formData.construimosAG && !isEditingQuote,
       };
 
-      if ((formData.construimosAG || isEditingQuote)) {
+      if (formData.actividad.trim() || isEditingQuote) {
         // Normalize for API
         const cantStr = formData.cantidad.toString().replace(/,/g, ".");
         const puStr = formData.precioUnitario.toString().replace(/,/g, ".");
@@ -245,8 +263,8 @@ export function ItemModal({
         payload.quoteData = {
           actividad: formData.actividad,
           unidad: formData.unidad,
-          cantidad: Number.parseFloat(cantStr),
-          precioUnitario: Number.parseFloat(puStr),
+          cantidad: Number.parseFloat(cantStr || "0"),
+          precioUnitario: Number.parseFloat(puStr || "0"),
           precioTotal: Number.parseFloat(ptStr || "0"),
           materialesObservaciones: formData.materialesObservaciones,
         };
@@ -347,7 +365,7 @@ export function ItemModal({
                 </div>
               </div>
 
-              {pendingPayload.construimosAG && pendingPayload.quoteData && (
+              {pendingPayload.quoteData && (
                 <div className="p-4 bg-purple-50 dark:bg-purple-900/10 rounded-lg border border-purple-100 dark:border-purple-800">
                   <h4 className="text-sm font-semibold text-purple-600 mb-3">Cotización Inicial</h4>
                   <div className="space-y-2 text-sm">
@@ -362,12 +380,12 @@ export function ItemModal({
                       </div>
                       <div>
                         <span className="font-medium text-muted-foreground">Precio Unitario:</span>
-                        <p className="mt-1">${Number(pendingPayload.quoteData.precioUnitario).toLocaleString()}</p>
+                        <p className="mt-1">{pendingPayload.construimosAG ? `$${Number(pendingPayload.quoteData.precioUnitario).toLocaleString()}` : "N/A"}</p>
                       </div>
                     </div>
                     <div>
                       <span className="font-medium text-muted-foreground">Precio Total:</span>
-                      <p className="mt-1 font-bold text-purple-700 dark:text-purple-400">${Number(pendingPayload.quoteData.precioTotal).toLocaleString()}</p>
+                      <p className="mt-1 font-bold text-purple-700 dark:text-purple-400">{pendingPayload.construimosAG ? `$${Number(pendingPayload.quoteData.precioTotal).toLocaleString()}` : "N/A"}</p>
                     </div>
                     {pendingPayload.quoteData.materialesObservaciones && (
                       <div>
@@ -536,9 +554,8 @@ export function ItemModal({
               </div>
             )}
 
-            {(formData.construimosAG || isEditingQuote) && (
-              <div className="space-y-4 p-4 border rounded-md bg-muted/20">
-                <div className="font-semibold text-sm">Información de Cotización Inicial</div>
+            <div className="space-y-4 p-4 border rounded-md bg-muted/20">
+              <div className="font-semibold text-sm">Información de la Actividad / Cotización</div>
 
                 <div className="space-y-2">
                   <Label htmlFor="actividad">Actividad <span className="text-red-500">*</span></Label>
@@ -612,11 +629,11 @@ export function ItemModal({
                     <Input
                       id="precioUnitario"
                       type="text"
-                      value={formatCurrency(formData.precioUnitario)}
+                      value={formData.construimosAG ? formatCurrency(formData.precioUnitario) : "N/A"}
                       onChange={(e) => handleCurrencyChange(e, "precioUnitario")}
-                      placeholder="0"
-                      disabled={combinedSubmitting}
-                      className="w-full font-medium"
+                      placeholder={formData.construimosAG ? "0" : "N/A"}
+                      disabled={combinedSubmitting || !formData.construimosAG}
+                      className={`w-full font-medium ${!formData.construimosAG ? 'bg-muted italic' : ''}`}
                     />
                     {errors.precioUnitario && <p className="text-sm text-destructive truncate">{errors.precioUnitario}</p>}
                   </div>
@@ -626,9 +643,9 @@ export function ItemModal({
                     <Input
                       id="precioTotal"
                       type="text"
-                      value={formatCurrency(formData.precioTotal)}
+                      value={formData.construimosAG ? formatCurrency(formData.precioTotal) : "N/A"}
                       readOnly
-                      className="bg-muted w-full font-bold"
+                      className={`bg-muted w-full font-bold ${!formData.construimosAG ? 'italic' : ''}`}
                     />
                   </div>
                 </div>
@@ -645,7 +662,6 @@ export function ItemModal({
                   />
                 </div>
               </div>
-            )}
 
             {/* Other Fields */}
             <div className="space-y-2">

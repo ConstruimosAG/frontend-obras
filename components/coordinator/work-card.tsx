@@ -7,7 +7,7 @@ import type { Work } from "@/lib/types";
 
 interface WorkCardProps {
   work: Work;
-  onEdit: (work: Work) => void;
+  onEdit?: (work: Work) => void;
   onDelete?: (workId: string | number) => void;
   onClick: (workId: string) => void;
 }
@@ -58,15 +58,17 @@ export function WorkCard({ work, onEdit, onDelete, onClick }: WorkCardProps) {
             </div>
           </div>
           <div className="flex flex-col gap-2 shrink-0 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleEditClick}
-              className="bg-transparent"
-            >
-              <Pencil className="h-4 w-4 sm:mr-1" />
-              <span className="hidden sm:inline">Editar</span>
-            </Button>
+            {onEdit && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleEditClick}
+                className="bg-transparent"
+              >
+                <Pencil className="h-4 w-4 sm:mr-1" />
+                <span className="hidden sm:inline">Editar</span>
+              </Button>
+            )}
             {onDelete && (
               <Button
                 variant="outline"

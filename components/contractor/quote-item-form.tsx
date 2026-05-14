@@ -75,10 +75,38 @@ export function QuoteItemForm({
           measure: subq[firstKey].measure || 0,
           unit: subq[firstKey].unit || "UND",
           unitValue: subq[firstKey].unitValue || 0,
+          materials: initMaterials?.description || "",
         };
       }
     }
-    return { description: "", measure: 0, unit: "UND", unitValue: 0 };
+    // Si no hay initial data explícita, buscar en el ítem la cotización inicial
+    if (item?.quoteItems?.length > 0) {
+      // Prioridad 1: Una cotización ya asignada a este contratista
+      // Prioridad 2: Una cotización de referencia (sin contratista asignado)
+      // Prioridad 3: Una cotización de ConstruimosAG (como base)
+      const initialQuote = item.quoteItems.find((q: any) => q.assignedContractorId === currentUser?.id)
+                        || item.quoteItems.find((q: any) => !q.assignedContractorId && !q.ConstruimosAG) 
+                        || item.quoteItems.find((q: any) => q.ConstruimosAG);
+      
+      if (initialQuote) {
+        let subq = initialQuote.subquotations;
+        if (typeof subq === "string") try { subq = JSON.parse(subq); } catch (e) { subq = {}; }
+        const firstKey = Object.keys(subq)[0];
+        const data = subq[firstKey] || {};
+        
+        let mats = initialQuote.materials;
+        if (typeof mats === "string") try { mats = JSON.parse(mats); } catch (e) { mats = {}; }
+
+        return {
+          description: data.description || "",
+          measure: data.measure || 0,
+          unit: data.unit || "UND",
+          unitValue: data.unitValue || 0,
+          materials: mats?.description || ""
+        };
+      }
+    }
+    return { description: "", measure: 0, unit: "UND", unitValue: 0, materials: "" };
   };
 
   const initialSubq = getInitialSubq();
@@ -90,7 +118,7 @@ export function QuoteItemForm({
   const [measure, setMeasure] = useState(initialSubq.measure);
   const [unit, setUnit] = useState(initialSubq.unit);
   const [unitValue, setUnitValue] = useState(initialSubq.unitValue);
-  const [materialsDesc, setMaterialsDesc] = useState(initMaterials?.description || "");
+  const [materialsDesc, setMaterialsDesc] = useState(initialSubq.materials || initMaterials?.description || "");
 
   // Display State
   const [measureDisplay, setMeasureDisplay] = useState(initialSubq.measure > 0 ? String(initialSubq.measure) : "");
@@ -103,6 +131,41 @@ export function QuoteItemForm({
   const [taxType, setTaxType] = useState<"none" | "iva" | "aiu">(
     initVat ? (initAdmin > 0 ? "aiu" : "iva") : "none"
   );
+
+  const [referenceQuoteId, setReferenceQuoteId] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (item?.quoteItems?.length > 0) {
+      const initialQuote = item.quoteItems.find((q: any) => q.assignedContractorId === currentUser?.id)
+                        || item.quoteItems.find((q: any) => !q.assignedContractorId && !q.ConstruimosAG) 
+                        || item.quoteItems.find((q: any) => q.ConstruimosAG);
+      
+      if (initialQuote) {
+        setReferenceQuoteId(initialQuote.id);
+        
+        // Sincronizar estados locales con la cotización encontrada
+        let subqData = initialQuote.subquotations;
+        if (typeof subqData === "string") try { subqData = JSON.parse(subqData); } catch (e) { subqData = {}; }
+        const data = subqData?.item_1 || {};
+        
+        let mats = initialQuote.materials;
+        if (typeof mats === "string") try { mats = JSON.parse(mats); } catch (e) { mats = {}; }
+        const materialsData = mats || {};
+
+        if (data.description) setDescription(data.description);
+        if (data.measure) {
+          setMeasure(data.measure);
+          setMeasureDisplay(String(data.measure));
+        }
+        if (data.unit) setUnit(data.unit);
+        if (data.unitValue) {
+          setUnitValue(data.unitValue);
+          setUnitValueDisplay(String(data.unitValue));
+        }
+        if (materialsData.description) setMaterialsDesc(materialsData.description);
+      }
+    }
+  }, [item, currentUser]);
 
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -213,6 +276,7 @@ export function QuoteItemForm({
       agValue: taxType !== "none" ? Number(taxAmount.toFixed(2)) : null,
       vat: taxType !== "none",
       assignedContractorId: isExternal ? null : (currentUser?.id || null),
+      ConstruimosAG: false,
       ...(isExternal && {
         externalContractorName: externalName.trim(),
         externalContractorIdentifier: externalIdentifier.trim(),
@@ -221,8 +285,11 @@ export function QuoteItemForm({
 
     try {
       let result;
-      if (isEditing && initial?.id) {
-        result = await updateQuoteItem(initial.id, payload as any);
+      // Si hay una cotización de referencia (sin contratista o inicial), la actualizamos
+      const targetId = (isEditing && initial?.id) ? initial.id : referenceQuoteId;
+
+      if (targetId) {
+        result = await updateQuoteItem(targetId, payload as any);
       } else {
         result = await createQuoteItem(payload as any);
       }
@@ -279,13 +346,14 @@ export function QuoteItemForm({
                 value={measureDisplay}
                 onChange={(e) => handleCostInput(e, setMeasureDisplay, setMeasure)}
                 onFocus={() => handleCostFocus(measure, setMeasureDisplay)}
-                className={`h-9 text-sm ${errors.measure ? "border-red-500" : "border-gray-200 focus:border-purple-400 focus:ring-0"}`}
+                className={`h-9 text-sm ${errors.measure ? "border-red-500" : "border-gray-200 focus:border-purple-400 focus:ring-0"} ${!isExternal && !isEditing ? "bg-muted" : ""}`}
+                disabled={!isExternal && !isEditing}
               />
             </div>
             <div className="space-y-1.5">
               <Label className="text-[10px] font-bold text-gray-400 uppercase">Unidad</Label>
-              <Select value={unit} onValueChange={setUnit}>
-                <SelectTrigger className="h-9 text-sm border-gray-200 focus:ring-0">
+              <Select value={unit} onValueChange={setUnit} disabled={!isExternal && !isEditing}>
+                <SelectTrigger className={`h-9 text-sm border-gray-200 focus:ring-0 ${!isExternal && !isEditing ? "bg-muted" : ""}`}>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>

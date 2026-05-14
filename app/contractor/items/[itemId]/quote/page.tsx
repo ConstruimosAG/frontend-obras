@@ -97,13 +97,13 @@ export default function ContractorQuoteItemPage({
 
     // Verificar si el contratista ya cotizó este item
     const hasExistingQuote = item.quoteItems?.some(
-        (quote: any) => quote.assignedContractorId === currentUser?.id
+        (quote: any) => quote.assignedContractorId === currentUser?.id && Number(quote.totalContractor) > 0 && Number(quote.subtotal) > 0
     );
 
     // Si ya cotizó, mostrar pantalla de "ya cotizado"
     if (hasExistingQuote) {
         const existingQuote = item.quoteItems.find(
-            (quote: any) => quote.assignedContractorId === currentUser?.id
+            (quote: any) => quote.assignedContractorId === currentUser?.id && Number(quote.totalContractor) > 0 && Number(quote.subtotal) > 0
         );
 
         return (

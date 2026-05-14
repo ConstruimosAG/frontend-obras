@@ -128,29 +128,111 @@ export function WorksPanel({ coordinator = true, path = "admin" }: { coordinator
         </div>
       </div>
 
-      {filteredWorks.length > 0 ? (
-        <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {filteredWorks.map((work: Work) => (
-            <WorkCard
-              key={work.id}
-              work={work}
-              onEdit={handleEditWork}
-              onDelete={isAdmin ? () => handleDeleteClick(work.id) : undefined}
-              onClick={() => handleWorkClick(work.id)}
-            />
-          ))}
-        </div>
-      ) : (
-        <div className="text-center py-8 sm:py-12 text-muted-foreground">
-          {searchTerm ? (
-            <p>No se encontraron obras que coincidan con "{searchTerm}"</p>
-          ) : loading ? (
-            <p>Cargando obras...</p>
-          ) : (
-            <p>No hay obras registradas. Crea una nueva para comenzar.</p>
-          )}
-        </div>
-      )}
+      {(() => {
+        const unfinalized = filteredWorks.filter(work => {
+          const items = work.items || [];
+          if (items.length === 0) return true;
+          const finalizedItems = items.filter(item => 
+            item.quoteItems?.some(qi => Number(qi.totalContractor) > 0 && Number(qi.subtotal) > 0)
+          ).length;
+          return finalizedItems < items.length;
+        });
+
+        const finalized = filteredWorks.filter(work => {
+          const items = work.items || [];
+          if (items.length === 0) return false;
+          const finalizedItems = items.filter(item => 
+            item.quoteItems?.some(qi => Number(qi.totalContractor) > 0 && Number(qi.subtotal) > 0)
+          ).length;
+          return finalizedItems === items.length;
+        });
+
+        if (filteredWorks.length === 0) {
+          return (
+            <div className="text-center py-8 sm:py-12 text-muted-foreground">
+              {searchTerm ? (
+                <p>No se encontraron obras que coincidan con "{searchTerm}"</p>
+              ) : loading ? (
+                <p>Cargando obras...</p>
+              ) : (
+                <p>No hay obras registradas. Crea una nueva para comenzar.</p>
+              )}
+            </div>
+          );
+        }
+
+        return (
+          <div className="space-y-8">
+            {unfinalized.length > 0 && (
+              <div className="space-y-4">
+                <div className="flex items-center gap-2">
+                  <h2 className="text-xl font-bold text-foreground">Obras no finalizadas</h2>
+                  <span className="bg-orange-100 text-orange-700 text-xs font-bold px-2 py-0.5 rounded-full">
+                    {unfinalized.length}
+                  </span>
+                </div>
+                <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                  {unfinalized.map((work: Work) => {
+                    const items = work.items || [];
+                    const finalizedItems = items.filter(item => 
+                      item.quoteItems?.some(qi => Number(qi.totalContractor) > 0 && Number(qi.subtotal) > 0)
+                    ).length;
+                    const missing = items.length - finalizedItems;
+                    
+                    return (
+                      <div key={work.id} className="relative group">
+                        <WorkCard
+                          work={work}
+                          onEdit={(isAdmin || !work.finalized) ? handleEditWork : undefined}
+                          onDelete={isAdmin ? () => handleDeleteClick(work.id) : undefined}
+                          onClick={() => handleWorkClick(work.id)}
+                        />
+                        {!coordinator && (
+                          <div className="absolute top-2 right-2 pointer-events-none">
+                            <span className="bg-orange-500 text-white text-[10px] font-bold px-2 py-1 rounded-md shadow-sm">
+                              Faltan {missing} {missing === 1 ? 'ítem' : 'ítems'}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {finalized.length > 0 && (
+              <div className="space-y-4">
+                <div className="flex items-center gap-2">
+                  <h2 className="text-xl font-bold text-foreground">Obras finalizadas</h2>
+                  <span className="bg-green-100 text-green-700 text-xs font-bold px-2 py-0.5 rounded-full">
+                    {finalized.length}
+                  </span>
+                </div>
+                <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                  {finalized.map((work: Work) => (
+                    <div key={work.id} className="relative group">
+                      <WorkCard
+                        work={work}
+                        onEdit={(isAdmin || !work.finalized) ? handleEditWork : undefined}
+                        onDelete={isAdmin ? () => handleDeleteClick(work.id) : undefined}
+                        onClick={() => handleWorkClick(work.id)}
+                      />
+                      {!coordinator && (
+                        <div className="absolute top-2 right-2 pointer-events-none">
+                          <span className="bg-green-500 text-white text-[10px] font-bold px-2 py-1 rounded-md shadow-sm">
+                            Finalizada
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      })()}
 
       <WorkModal
         open={modalOpen}

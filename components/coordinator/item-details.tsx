@@ -37,11 +37,7 @@ export function ItemDetails({
   const defaultBackUrl = `/coordinator/works/${work.id}`;
   const finalBackUrl = backUrl || defaultBackUrl;
 
-  const { users, currentUser, getCurrentUser } = useUsers();
-
-  useEffect(() => {
-    void getCurrentUser();
-  }, [getCurrentUser]);
+  const { users, currentUser } = useUsers();
 
   const isAuditor = currentUser?.role === "project_info" || currentUser?.role === "administrative_assistant";
   const creator = users.find((u) => u.id === item.createdById);

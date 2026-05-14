@@ -8,7 +8,7 @@ import { fetchClient } from "@/lib/fetch-client";
 export function useUsers() {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [users, setUsers] = useState<User[]>([]);
-  const [loading, setLoading] = useState<boolean>(false);
+  const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
   const baseUrl = process.env.NEXT_PUBLIC_BACKEND_URL;
@@ -108,7 +108,8 @@ export function useUsers() {
 
   useEffect(() => {
     void fetchUsers();
-  }, [fetchUsers]);
+    void getCurrentUser();
+  }, [fetchUsers, getCurrentUser]);
 
   return {
     currentUser,

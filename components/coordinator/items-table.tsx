@@ -313,7 +313,10 @@ export function ItemsTable({
   };
 
   const hasFinishedQuotation = (item: Item) => {
-    return item.quoteItems?.some((quote: any) => quote.quoteWorkId !== null);
+    return item.quoteItems?.some((quote: any) => 
+      quote.quoteWorkId !== null || 
+      (!quote.ConstruimosAG && Number(quote.totalContractor) > 0 && Number(quote.subtotal) > 0)
+    );
   };
 
   const handleBulkSave = async () => {
@@ -677,22 +680,23 @@ export function ItemsTable({
           const baseUrl = process.env.NEXT_PUBLIC_BACKEND_URL;
           const { actividad, unidad, cantidad, precioUnitario, precioTotal, materialesObservaciones } = data.quoteData;
 
-          const quotePayload = {
-            subquotations: {
-              item_1: {
-                id: 1,
-                description: actividad,
-                measure: Number(cantidad),
-                unit: unidad,
-                unitValue: Number(precioUnitario),
-                totalValue: Number(precioTotal),
-              }
-            },
-            totalContractor: Number(Number(precioTotal).toFixed(2)),
-            materials: materialesObservaciones ? { description: materialesObservaciones } : null,
-            subtotal: Number(Number(precioTotal).toFixed(2)),
-            ConstruimosAG: true, // preserve or enforce
-          };
+            const quotePayload = {
+              subquotations: {
+                item_1: {
+                  id: 1,
+                  description: actividad,
+                  measure: Number(cantidad),
+                  unit: unidad,
+                  unitValue: Number(precioUnitario),
+                  totalValue: Number(precioTotal),
+                }
+              },
+              totalContractor: Number(Number(precioTotal).toFixed(2)),
+              materials: materialesObservaciones ? { description: materialesObservaciones } : null,
+              subtotal: Number(Number(precioTotal).toFixed(2)),
+              ConstruimosAG: data.construimosAG, // Use the flag from form
+              assignedContractorId: data.contractorId ? Number(data.contractorId) : null,
+            };
 
           const res = await fetch(`${baseUrl}/api/quote-items/${editingQuoteItem.id}`, {
             method: "PUT",
@@ -714,6 +718,53 @@ export function ItemsTable({
       } else if (selectedItem) {
         // El hook updateItem solo envía campos válidos al API
         await updateItem(selectedItem.id, data);
+        
+        // Si hay información de cotización, también debemos actualizar o crear el QuoteItem inicial
+        const { quoteData, construimosAG } = data;
+        if (quoteData) {
+          try {
+            const baseUrl = process.env.NEXT_PUBLIC_BACKEND_URL;
+            const { actividad, unidad, cantidad, precioUnitario, precioTotal, materialesObservaciones } = quoteData;
+            
+            // Buscar si ya existe una cotización inicial para actualizarla.
+            // Consideramos inicial la que no tiene contratista O la que está asignada al contratista actual del ítem
+            const initialQuote = selectedItem.quoteItems?.find((q: any) => !q.assignedContractorId)
+                              || selectedItem.quoteItems?.find((q: any) => q.assignedContractorId === selectedItem.contractorId)
+                              || selectedItem.quoteItems?.find((q: any) => q.ConstruimosAG);
+
+            const quotePayload = {
+              itemId: Number(selectedItem.id),
+              subquotations: {
+                item_1: {
+                  id: 1,
+                  description: actividad,
+                  measure: Number(cantidad),
+                  unit: unidad,
+                  unitValue: Number(precioUnitario),
+                  totalValue: Number(precioTotal),
+                }
+              },
+              totalContractor: Number(Number(precioTotal).toFixed(2)),
+              materials: materialesObservaciones ? { description: materialesObservaciones } : null,
+              subtotal: Number(Number(precioTotal).toFixed(2)),
+              ConstruimosAG: construimosAG,
+              assignedContractorId: data.contractorId ? Number(data.contractorId) : null,
+            };
+
+            const method = initialQuote ? "PUT" : "POST";
+            const url = initialQuote ? `${baseUrl}/api/quote-items/${initialQuote.id}` : `${baseUrl}/api/quote-items`;
+
+            await fetch(url, {
+              method,
+              headers: { "Content-Type": "application/json" },
+              credentials: "include",
+              body: JSON.stringify(quotePayload),
+            });
+          } catch (error) {
+            console.error("Error al sincronizar cotización inicial:", error);
+          }
+        }
+        
         toast.success("Ítem actualizado exitosamente");
         window.location.reload();
       } else {
@@ -723,7 +774,7 @@ export function ItemsTable({
         // El hook createItem solo envía campos válidos al API
         const createdItem = await createItem({ ...itemPayload, workId: work.id });
 
-        if (construimosAG && quoteData && createdItem) {
+        if (quoteData && createdItem) {
           try {
             const baseUrl = process.env.NEXT_PUBLIC_BACKEND_URL;
             const { actividad, unidad, cantidad, precioUnitario, precioTotal, materialesObservaciones } = quoteData;
@@ -750,8 +801,8 @@ export function ItemsTable({
               profitPercentage: null,
               agValue: null,
               vat: false,
-              assignedContractorId: null,
-              ConstruimosAG: true,
+              assignedContractorId: createdItem.contractorId ? Number(createdItem.contractorId) : null,
+              ConstruimosAG: construimosAG,
             };
 
             const res = await fetch(`${baseUrl}/api/quote-items`, {
@@ -979,15 +1030,15 @@ export function ItemsTable({
                 onClick={() => setExtrasModalOpen(true)}
                 className="flex-1 sm:flex-none bg-purple-600 hover:bg-purple-700 text-white"
               >
-                {work.finalized ? (
-                  <Eye className="h-4 w-4 mr-1" />
-                ) : (
+                {(isAdmin || !work.finalized) ? (
                   <Plus className="h-4 w-4 mr-1" />
+                ) : (
+                  <Eye className="h-4 w-4 mr-1" />
                 )}
-                {work.finalized ? "Ver adicionales" : "Añadir adicionales"}
+                {(isAdmin || !work.finalized) ? "Añadir adicionales" : "Ver adicionales"}
               </Button>
 
-              {!work.finalized && (
+              {(isAdmin || !work.finalized) && (
                 <Button
                   onClick={() => {
                     setNewTitleValue("");
@@ -1011,7 +1062,7 @@ export function ItemsTable({
               <div className="flex justify-between items-center border-b pb-2">
                 <div className="flex items-center gap-3">
                   <h2 className="text-lg font-bold text-foreground">{group.title}</h2>
-                  {!work.finalized && !management && (
+                  {(isAdmin || !work.finalized) && !management && (
                     <div className="flex items-center gap-1">
                       <Button
                         variant="ghost"
@@ -1039,7 +1090,7 @@ export function ItemsTable({
                     </div>
                   )}
                 </div>
-                {!work.finalized && !management && (
+                {(isAdmin || !work.finalized) && !management && (
                   <Button
                     size="sm"
                     onClick={() => handleCreateItem(group.title)}
@@ -1171,20 +1222,10 @@ export function ItemsTable({
                                                     return val > 0 ? val.toLocaleString("es-CO") : "";
                                                   })()}
                                                   onChange={(e) => {
-                                                    let valStr = e.target.value;
-                                                    let filtered = valStr.replace(/[^0-9.,]/g, "");
-                                                    const lastDot = filtered.lastIndexOf(".");
-                                                    const lastComma = filtered.lastIndexOf(",");
-                                                    const lastSep = Math.max(lastDot, lastComma);
-                                                    
-                                                    let val = 0;
-                                                    if (lastSep !== -1) {
-                                                      const intP = filtered.substring(0, lastSep).replace(/[.,]/g, "");
-                                                      const decP = filtered.substring(lastSep + 1).replace(/[.,]/g, "");
-                                                      val = parseFloat(intP + "." + decP) || 0;
-                                                    } else {
-                                                      val = parseFloat(filtered) || 0;
-                                                    }
+                                                    const rawValue = e.target.value;
+                                                    // Remove thousands separators (dots) and normalize decimal separator (comma to dot)
+                                                    const cleanValue = rawValue.replace(/\./g, "").replace(",", ".");
+                                                    const val = parseFloat(cleanValue) || 0;
 
                                                     setBulkEdits(prev => ({
                                                       ...prev,
@@ -1395,7 +1436,7 @@ export function ItemsTable({
                                         </Button>
                                       )}
 
-                                      {!(coordinator && isFinished) && (
+                                      {(isAdmin || !work.finalized) && !(coordinator && isFinished) && (
                                         <Button
                                           variant="outline"
                                           size="sm"
@@ -1418,7 +1459,7 @@ export function ItemsTable({
                                         </Button>
                                       )}
 
-                                      {!(coordinator && isFinished) && (
+                                      {(isAdmin || !work.finalized) && !(coordinator && isFinished) && (
                                         <Button
                                           variant="outline"
                                           size="sm"
@@ -1586,20 +1627,9 @@ export function ItemsTable({
                                                   return val > 0 ? val.toLocaleString("es-CO") : "";
                                                 })()}
                                                 onChange={(e) => {
-                                                  let valStr = e.target.value;
-                                                  let filtered = valStr.replace(/[^0-9.,]/g, "");
-                                                  const lastDot = filtered.lastIndexOf(".");
-                                                  const lastComma = filtered.lastIndexOf(",");
-                                                  const lastSep = Math.max(lastDot, lastComma);
-                                                  
-                                                  let val = 0;
-                                                  if (lastSep !== -1) {
-                                                    const intP = filtered.substring(0, lastSep).replace(/[.,]/g, "");
-                                                    const decP = filtered.substring(lastSep + 1).replace(/[.,]/g, "");
-                                                    val = parseFloat(intP + "." + decP) || 0;
-                                                  } else {
-                                                    val = parseFloat(filtered) || 0;
-                                                  }
+                                                  const rawValue = e.target.value;
+                                                  const cleanValue = rawValue.replace(/\./g, "").replace(",", ".");
+                                                  const val = parseFloat(cleanValue) || 0;
 
                                                   setBulkEdits((prev) => ({
                                                     ...prev,
