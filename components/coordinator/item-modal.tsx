@@ -174,25 +174,19 @@ export function ItemModal({
   };
 
   const handleCurrencyChange = (e: React.ChangeEvent<HTMLInputElement>, field: string) => {
-    // Allow digits, dot and comma. Dot and comma are treated as decimals.
-    // Thousand separators (dots in es-CO) are stripped.
-    let val = e.target.value;
+    let rawValue = e.target.value;
     
-    // If there's a comma, dots are definitely thousands.
-    // If there's only dots, the last one might be a decimal or a thousand.
-    // To be safe and simple: strip everything except digits and the LAST separator.
-    let filtered = val.replace(/[^0-9.,]/g, "");
-    const lastDot = filtered.lastIndexOf(".");
-    const lastComma = filtered.lastIndexOf(",");
-    const lastSeparatorIndex = Math.max(lastDot, lastComma);
-
-    let finalValue = "";
-    if (lastSeparatorIndex !== -1) {
-      const integerPart = filtered.substring(0, lastSeparatorIndex).replace(/[.,]/g, "");
-      const decimalPart = filtered.substring(lastSeparatorIndex + 1).replace(/[.,]/g, "");
-      finalValue = integerPart + "." + decimalPart;
-    } else {
-      finalValue = filtered;
+    // En es-CO, el punto (.) es separador de miles y la coma (,) es separador decimal.
+    // Como el input muestra el valor formateado con puntos, debemos removerlos
+    // y usar la coma como el único separador decimal válido para evitar que '1.100' se convierta en '1.1'.
+    let cleanValue = rawValue.replace(/\./g, "").replace(/,/g, ".");
+    
+    let filtered = cleanValue.replace(/[^0-9.]/g, "");
+    
+    const parts = filtered.split('.');
+    let finalValue = parts[0];
+    if (parts.length > 1) {
+      finalValue += '.' + parts[1];
     }
 
     setFormData(prev => ({ ...prev, [field]: finalValue }));
