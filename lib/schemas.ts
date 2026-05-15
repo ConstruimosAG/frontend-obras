@@ -38,7 +38,7 @@ export const itemSchema = z.object({
   description: z
     .string()
     .min(10, "La descripción debe tener al menos 10 caracteres")
-    .max(500, "La descripción no puede exceder los 500 caracteres"),
+    .max(800, "La descripción no puede exceder los 500 caracteres"),
   estimatedExecutionTime: z
     .number()
     .min(1, "El tiempo estimado debe ser de al menos 1 hora")
@@ -50,7 +50,7 @@ export const itemEditSchema = z.object({
   description: z
     .string()
     .min(10, "La descripción debe tener al menos 10 caracteres")
-    .max(500, "La descripción no puede exceder los 500 caracteres"),
+    .max(1000, "La descripción no puede exceder los 1000 caracteres"),
   estimatedExecutionTime: z
     .number()
     .min(1, "El tiempo estimado debe ser de al menos 1 hora")
