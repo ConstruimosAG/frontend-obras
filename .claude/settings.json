@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//c/Users/Sebas/OneDrive/Desktop/backend-obras/src/validations/**)"
+    ],
+    "additionalDirectories": [
+      "c:\\Users\\Sebas\\OneDrive\\Desktop\\backend-obras\\src\\validations"
+    ]
+  }
+}
