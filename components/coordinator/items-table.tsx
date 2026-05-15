@@ -1280,9 +1280,9 @@ export function ItemsTable({
                       <TableHeader>
                         <TableRow className="bg-muted/60">
                           {canReorder && <TableHead className="border border-border w-8" />}
+                          <TableHead className="border border-border w-8 text-xs text-center text-muted-foreground">#</TableHead>
                           <TableHead className="border border-border w-48 min-w-[160px] text-xs text-center">Descripción</TableHead>
                           <TableHead className="border border-border w-32 text-xs text-center whitespace-nowrap">Personal</TableHead>
-                          <TableHead className="border border-border w-28 text-xs text-center whitespace-nowrap">Tiempo Est.</TableHead>
                           <TableHead className="border border-border w-16 text-xs text-center">Und.</TableHead>
                           <TableHead className="border border-border w-16 text-xs text-center">Cant.</TableHead>
                           <TableHead className="border border-border w-24 text-xs text-center whitespace-nowrap">V. Unit.</TableHead>
@@ -1306,11 +1306,14 @@ export function ItemsTable({
                           items={getOrderedItems(group).map((i) => i.id)}
                           strategy={verticalListSortingStrategy}
                         >
-                        {getOrderedItems(group).map((item: Item) => {
+                        {getOrderedItems(group).map((item: Item, itemIdx: number) => {
                           const isFinished = hasFinishedQuotation(item);
                           const lockedForCoordinator = isLockedForCoordinator(item);
                           return (
                             <SortableTableRow key={item.id} id={item.id} isDragEnabled={canReorder} className="hover:bg-muted/30">
+                              <TableCell className="border border-border align-middle py-2 w-8 text-center text-xs text-muted-foreground font-mono select-none">
+                                {itemIdx + 1}
+                              </TableCell>
                               <TableCell className="border border-border align-middle py-2 min-w-[200px]">
                                 <p className="font-medium text-xs break-words whitespace-normal text-left">{item.description}</p>
                               </TableCell>
@@ -1319,10 +1322,6 @@ export function ItemsTable({
                                   {getPersonnelDisplay(item)}
                                 </span>
                               </TableCell>
-                              <TableCell className="border border-border align-middle text-xs py-2 whitespace-nowrap">
-                                {formatEstimatedTime(item.estimatedExecutionTime)}
-                              </TableCell>
-
                               {(() => {
                                 const finalizedQuote = item.quoteItems?.find((q: any) => q.quoteWorkId !== null);
                                 const agQuote = item.quoteItems?.find((q: any) => q.ConstruimosAG);
@@ -1564,7 +1563,7 @@ export function ItemsTable({
                               </TableCell>
                               <TableCell className="border border-border py-2">
                                 <div className="flex items-center justify-center gap-1 flex-wrap">
-                                  {management && !isFinished && (item.quoteItems?.length ?? 0) > 0 && (
+                                  {management && !isFinished && item.quoteItems?.some((q) => Number(q.subtotal) > 0) && (
                                     <Button
                                       variant="default"
                                       size="sm"
@@ -1685,7 +1684,7 @@ export function ItemsTable({
                       items={getOrderedItems(group).map((i) => i.id)}
                       strategy={verticalListSortingStrategy}
                     >
-                    {getOrderedItems(group).map((item: Item) => {
+                    {getOrderedItems(group).map((item: Item, itemIdx: number) => {
                       const isFinished = hasFinishedQuotation(item);
                       return (
                         <SortableMobileCard key={item.id} id={item.id} isDragEnabled={canReorder}>
@@ -1694,6 +1693,7 @@ export function ItemsTable({
                           <div className="flex items-start justify-between gap-2">
                             <div className="min-w-0 flex-1">
                               <div className="flex items-center gap-2 mb-2 flex-wrap">
+                                <span className="text-[10px] font-mono text-muted-foreground select-none">#{itemIdx + 1}</span>
                                 <Badge
                                   variant={item.active ? "default" : "secondary"}
                                   className={
@@ -1725,14 +1725,6 @@ export function ItemsTable({
                                 <span className="font-semibold text-purple-700">{getPersonnelDisplay(item)}</span>
                               </div>
                             </div>
-                            <div className="flex flex-col gap-1">
-                              <span className="text-[10px] uppercase text-muted-foreground font-bold">Tiempo Est.</span>
-                              <div className="flex items-center gap-2">
-                                <Clock className="h-3 w-3 text-purple-500" />
-                                <span>{formatEstimatedTime(item.estimatedExecutionTime)}</span>
-                              </div>
-                            </div>
-
                             {(() => {
                               const finalizedQuote = (item.quoteItems as any)?.find((q: any) => q.quoteWorkId !== null);
                               const agQuote = item.quoteItems?.find((q: any) => q.ConstruimosAG);
@@ -1966,7 +1958,7 @@ export function ItemsTable({
                           <div className="flex items-center gap-2 pt-2 border-t flex-wrap">
                             {management ? (
                               <>
-                                {!isFinished && (item.quoteItems?.length ?? 0) > 0 && (
+                                {!isFinished && item.quoteItems?.some((q) => Number(q.subtotal) > 0) && (
                                   <Button
                                     variant="default"
                                     size="sm"

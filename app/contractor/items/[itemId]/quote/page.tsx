@@ -467,14 +467,16 @@ export default function ContractorQuoteItemPage({
                                             })}
                                         </p>
                                     </div>
-                                    {(item.estimatedExecutionTime || item.extras?.estimatedTime) && (
-                                        <div className="text-right">
-                                            <Label className="text-[10px] font-bold text-orange-400 uppercase tracking-widest">Tiempo Estimado</Label>
-                                            <p className="font-bold text-orange-600">
-                                                {item.estimatedExecutionTime || item.extras?.estimatedTime} {item.estimatedExecutionTime ? 'días' : ''}
-                                            </p>
-                                        </div>
-                                    )}
+                                    <div className="text-right">
+                                        <Label className="text-[10px] font-bold text-orange-400 uppercase tracking-widest">Tiempo Estimado</Label>
+                                        <p className="font-bold text-orange-600">
+                                            {item.estimatedExecutionTime
+                                                ? `${item.estimatedExecutionTime} días`
+                                                : item.extras?.estimatedTime
+                                                    ? item.extras.estimatedTime
+                                                    : "No se asignó un tiempo estimado"}
+                                        </p>
+                                    </div>
                                 </div>
                                 {item.personnelRequired && Object.keys(item.personnelRequired).length > 0 && (
                                     <div>

@@ -266,13 +266,17 @@ export default function ItemQuotationsPage({ params }: ItemQuotationsPageProps) 
 
         {/* Lista de cotizaciones */}
         <div className="space-y-4">
+          {(() => {
+            const availableQuotes = quoteItems.filter((q: any) => Number(q.subtotal) > 0);
+            return (
+          <>
           <h2 className="text-lg font-semibold">
-            Cotizaciones Recibidas ({quoteItems.length})
+            Cotizaciones Recibidas ({availableQuotes.length})
           </h2>
 
-          {quoteItems.length > 0 ? (
+          {availableQuotes.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {quoteItems.map((quote: any) => (
+              {availableQuotes.map((quote: any) => (
                 <Card
                   key={quote.id}
                   className="hover:shadow-xl transition-all duration-200 border-2 hover:border-purple-300 overflow-hidden"
@@ -346,14 +350,17 @@ export default function ItemQuotationsPage({ params }: ItemQuotationsPageProps) 
               <CardContent className="py-12 text-center">
                 <FileText className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
                 <p className="text-muted-foreground">
-                  No hay cotizaciones para este ítem
+                  No hay cotizaciones disponibles para este ítem
                 </p>
                 <p className="text-sm text-muted-foreground mt-1">
-                  Las cotizaciones aparecerán aquí cuando los contratistas las envíen
+                  Las cotizaciones aparecerán aquí una vez que los contratistas completen sus precios
                 </p>
               </CardContent>
             </Card>
           )}
+          </>
+            );
+          })()}
         </div>
       </div>
     </main>

@@ -56,7 +56,7 @@ export function ItemDetails({
   };
 
   const formatEstimatedTime = (hours: number | null) => {
-    if (!hours) return "No establecido";
+    if (!hours) return "No se asignó un tiempo estimado";
     if (hours < 24) return `${hours} horas`;
     const days = Math.floor(hours / 8);
     return `${days} día${days > 1 ? "s" : ""} (${hours} horas)`;

@@ -281,14 +281,14 @@ export default function ExternContractorPage({ params }: ExternContractorPagePro
                     <p className="text-sm">{item.description}</p>
                   </div>
 
-                  {item.estimatedExecutionTime && (
-                    <div>
-                      <p className="text-xs font-medium text-gray-500 mb-1">
-                        Tiempo estimado de ejecución
-                      </p>
-                      <p className="text-sm">{item.estimatedExecutionTime} días</p>
-                    </div>
-                  )}
+                  <div>
+                    <p className="text-xs font-medium text-gray-500 mb-1">
+                      Tiempo estimado de ejecución
+                    </p>
+                    <p className="text-sm">
+                      {item.estimatedExecutionTime ? `${item.estimatedExecutionTime} días` : "No se asignó un tiempo estimado"}
+                    </p>
+                  </div>
 
                   <div>
                     <p className="text-xs font-medium text-gray-500 mb-1">

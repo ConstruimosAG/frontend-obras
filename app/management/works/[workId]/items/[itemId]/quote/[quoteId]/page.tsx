@@ -711,6 +711,24 @@ export default function ManagementQuoteForm({ params }: ManagementQuoteFormProps
                   <p className="text-xs text-muted-foreground">Porcentaje de administración y gestión (máx. 100%)</p>
                 </div>
               </div>
+
+              {/* Valor unitario AG actual */}
+              {(() => {
+                const qty = isAG ? editCantidad : Number((subqItems[0] as any)?.measure || 0);
+                const total = calculateTotalContractorWithAG();
+                if (qty <= 0 || total <= 0) return null;
+                const unitValue = total / qty;
+                return (
+                  <div className="flex items-center justify-between rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 px-4 py-3 mt-2">
+                    <span className="text-sm font-medium text-blue-700 dark:text-blue-300">
+                      Valor unitario AG actual:
+                    </span>
+                    <span className="text-sm font-bold text-blue-700 dark:text-blue-300 tabular-nums">
+                      ${formatCurrency(unitValue)}
+                    </span>
+                  </div>
+                );
+              })()}
             </CardContent>
           </Card>
 

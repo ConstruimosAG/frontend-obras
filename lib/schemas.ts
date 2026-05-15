@@ -39,10 +39,6 @@ export const itemSchema = z.object({
     .string()
     .min(10, "La descripción debe tener al menos 10 caracteres")
     .max(1000, "La descripción no puede exceder los 1000 caracteres"),
-  estimatedExecutionTime: z
-    .number()
-    .min(1, "El tiempo estimado debe ser de al menos 1 hora")
-    .optional(),
 });
 
 // Esquema para editar un ítem
@@ -51,10 +47,6 @@ export const itemEditSchema = z.object({
     .string()
     .min(10, "La descripción debe tener al menos 10 caracteres")
     .max(1000, "La descripción no puede exceder los 1000 caracteres"),
-  estimatedExecutionTime: z
-    .number()
-    .min(1, "El tiempo estimado debe ser de al menos 1 hora")
-    .optional(),
 });
 
 export type WorkSchemaType = z.infer<typeof workSchema>;

@@ -61,7 +61,6 @@ export function ItemModal({
   const [formData, setFormData] = useState({
     title: "",
     description: "",
-    estimatedExecutionTime: "",
     contractorId: "",
     active: true,
     construimosAG: false,
@@ -99,7 +98,6 @@ export function ItemModal({
       setFormData({
         title: item?.title || "",
         description: item?.description || "",
-        estimatedExecutionTime: item?.estimatedExecutionTime?.toString() || "",
         contractorId: item?.contractorId?.toString() || "",
         active: item?.active ?? true,
         construimosAG: true,
@@ -113,16 +111,16 @@ export function ItemModal({
     } else if (item) {
       // Buscar si tiene una cotización inicial (referencia o ConstruimosAG)
       const initialQuote = item.quoteItems?.find((q: any) => !q.assignedContractorId && !q.ConstruimosAG)
-                        || item.quoteItems?.find((q: any) => q.ConstruimosAG);
+        || item.quoteItems?.find((q: any) => q.ConstruimosAG);
 
       let subq: any = {};
       let materialsData: any = {};
-      
+
       if (initialQuote) {
         let subqData = initialQuote.subquotations;
         if (typeof subqData === "string") try { subqData = JSON.parse(subqData); } catch (e) { subqData = {}; }
         subq = subqData?.item_1 || {};
-        
+
         let mats = initialQuote.materials;
         if (typeof mats === "string") try { mats = JSON.parse(mats); } catch (e) { mats = {}; }
         materialsData = mats || {};
@@ -131,7 +129,6 @@ export function ItemModal({
       setFormData({
         title: item.title || "",
         description: item.description,
-        estimatedExecutionTime: item.estimatedExecutionTime?.toString() || "",
         contractorId: item.contractorId?.toString() || "",
         active: item.active,
         construimosAG: initialQuote?.ConstruimosAG ?? false,
@@ -146,7 +143,6 @@ export function ItemModal({
       setFormData({
         title: selectedTitle,
         description: "",
-        estimatedExecutionTime: "",
         contractorId: "",
         active: true,
         construimosAG: false,
@@ -175,14 +171,14 @@ export function ItemModal({
 
   const handleCurrencyChange = (e: React.ChangeEvent<HTMLInputElement>, field: string) => {
     let rawValue = e.target.value;
-    
+
     // En es-CO, el punto (.) es separador de miles y la coma (,) es separador decimal.
     // Como el input muestra el valor formateado con puntos, debemos removerlos
     // y usar la coma como el único separador decimal válido para evitar que '1.100' se convierta en '1.1'.
     let cleanValue = rawValue.replace(/\./g, "").replace(/,/g, ".");
-    
+
     let filtered = cleanValue.replace(/[^0-9.]/g, "");
-    
+
     const parts = filtered.split('.');
     let finalValue = parts[0];
     if (parts.length > 1) {
@@ -198,7 +194,7 @@ export function ItemModal({
       // Normalize cantidad and precioUnitario (replace comma with dot if any)
       const cantStr = formData.cantidad.toString().replace(/,/g, ".");
       const puStr = formData.precioUnitario.toString().replace(/,/g, ".");
-      
+
       const cant = Number.parseFloat(cantStr);
       const pu = Number.parseFloat(puStr);
       if (!isNaN(cant) && !isNaN(pu)) {
@@ -240,9 +236,6 @@ export function ItemModal({
       const payload: any = {
         title: formData.title || null,
         description: formData.description,
-        estimatedExecutionTime: formData.estimatedExecutionTime
-          ? Number.parseInt(formData.estimatedExecutionTime, 10)
-          : null,
         contractorId: formData.contractorId ? Number.parseInt(formData.contractorId, 10) : null,
         active: formData.active,
         construimosAG: formData.construimosAG && !isEditingQuote,
@@ -265,15 +258,9 @@ export function ItemModal({
       }
 
       if (isEditing && !isEditingQuote) {
-        itemEditSchema.parse({
-          description: payload.description,
-          estimatedExecutionTime: payload.estimatedExecutionTime,
-        });
+        itemEditSchema.parse({ description: payload.description });
       } else if (!isEditingQuote) {
-        itemSchema.parse({
-          description: payload.description,
-          estimatedExecutionTime: payload.estimatedExecutionTime,
-        });
+        itemSchema.parse({ description: payload.description });
       }
 
       if (!isEditing && !isEditingQuote && !showSummary) {
@@ -347,10 +334,6 @@ export function ItemModal({
                   <div>
                     <span className="font-medium text-muted-foreground">Descripción:</span>
                     <p className="mt-1 break-words">{pendingPayload.description}</p>
-                  </div>
-                  <div>
-                    <span className="font-medium text-muted-foreground">Tiempo Estimado:</span>
-                    <p className="mt-1">{pendingPayload.estimatedExecutionTime} horas</p>
                   </div>
                   <div>
                     <span className="font-medium text-muted-foreground">Realizado por:</span>
@@ -441,7 +424,7 @@ export function ItemModal({
 
             <div className="space-y-2">
               <Label htmlFor="description">
-                Descripción <span className="text-red-500">*</span>
+                Actividad <span className="text-red-500">*</span>
               </Label>
               <Textarea
                 id="description"
@@ -551,144 +534,110 @@ export function ItemModal({
             <div className="space-y-4 p-4 border rounded-md bg-muted/20">
               <div className="font-semibold text-sm">Información de la Actividad / Cotización</div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="actividad">Actividad <span className="text-red-500">*</span></Label>
-                  <Textarea
-                    id="actividad"
-                    value={formData.actividad}
-                    onChange={(e) => setFormData({ ...formData, actividad: e.target.value })}
-                    placeholder="Descripción de la actividad..."
+              <div className="space-y-2">
+                <Label htmlFor="actividad">Actividad <span className="text-red-500">*</span></Label>
+                <Textarea
+                  id="actividad"
+                  value={formData.actividad}
+                  onChange={(e) => setFormData({ ...formData, actividad: e.target.value })}
+                  placeholder="Descripción de la actividad..."
+                  disabled={combinedSubmitting}
+                />
+                {errors.actividad && <p className="text-sm text-destructive">{errors.actividad}</p>}
+              </div>
+
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="space-y-2 min-w-0">
+                  <Label htmlFor="cantidad" className="truncate block">Cantidad <span className="text-red-500">*</span></Label>
+                  <Input
+                    id="cantidad"
+                    type="text"
+                    value={formData.cantidad.toString().replace(/\./g, ",")}
+                    onChange={(e) => {
+                      let val = e.target.value.replace(/[^0-9.,]/g, "");
+                      const lastDot = val.lastIndexOf(".");
+                      const lastComma = val.lastIndexOf(",");
+                      const lastSep = Math.max(lastDot, lastComma);
+
+                      if (lastSep !== -1) {
+                        const intP = val.substring(0, lastSep).replace(/[.,]/g, "");
+                        const decP = val.substring(lastSep + 1).replace(/[.,]/g, "");
+                        setFormData({ ...formData, cantidad: intP + "." + decP });
+                      } else {
+                        setFormData({ ...formData, cantidad: val });
+                      }
+                    }}
+                    placeholder="0,00"
                     disabled={combinedSubmitting}
+                    className="w-full"
                   />
-                  {errors.actividad && <p className="text-sm text-destructive">{errors.actividad}</p>}
+                  {errors.cantidad && <p className="text-sm text-destructive truncate">{errors.cantidad}</p>}
                 </div>
 
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <div className="space-y-2 min-w-0">
-                    <Label htmlFor="cantidad" className="truncate block">Cantidad <span className="text-red-500">*</span></Label>
-                    <Input
-                      id="cantidad"
-                      type="text"
-                      value={formData.cantidad.toString().replace(/\./g, ",")}
-                      onChange={(e) => {
-                        let val = e.target.value.replace(/[^0-9.,]/g, "");
-                        const lastDot = val.lastIndexOf(".");
-                        const lastComma = val.lastIndexOf(",");
-                        const lastSep = Math.max(lastDot, lastComma);
-                        
-                        if (lastSep !== -1) {
-                          const intP = val.substring(0, lastSep).replace(/[.,]/g, "");
-                          const decP = val.substring(lastSep + 1).replace(/[.,]/g, "");
-                          setFormData({ ...formData, cantidad: intP + "." + decP });
-                        } else {
-                          setFormData({ ...formData, cantidad: val });
-                        }
-                      }}
-                      placeholder="0,00"
-                      disabled={combinedSubmitting}
-                      className="w-full"
-                    />
-                    {errors.cantidad && <p className="text-sm text-destructive truncate">{errors.cantidad}</p>}
-                  </div>
-
-                  <div className="space-y-2 min-w-0">
-                    <Label htmlFor="unidad" className="truncate block">Unidad</Label>
-                    <Select
-                      value={formData.unidad}
-                      onValueChange={(value) => setFormData({ ...formData, unidad: value })}
-                      disabled={combinedSubmitting}
-                    >
-                      <SelectTrigger className="w-full">
-                        <SelectValue className="truncate" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="UND">UND</SelectItem>
-                        <SelectItem value="M2">M2</SelectItem>
-                        <SelectItem value="M3">M3</SelectItem>
-                        <SelectItem value="ML">ML</SelectItem>
-                        <SelectItem value="KM">KM</SelectItem>
-                        <SelectItem value="KG">KG</SelectItem>
-                        <SelectItem value="LT">LT</SelectItem>
-                        <SelectItem value="GLB">GLB</SelectItem>
-                        <SelectItem value="HR">HR</SelectItem>
-                        <SelectItem value="DIA">DIA</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-2 min-w-0">
-                    <Label htmlFor="precioUnitario" className="whitespace-nowrap truncate block">
-                      Precio U. <span className="text-red-500">*</span>
-                    </Label>
-                    <Input
-                      id="precioUnitario"
-                      type="text"
-                      value={formData.construimosAG ? formatCurrency(formData.precioUnitario) : "N/A"}
-                      onChange={(e) => handleCurrencyChange(e, "precioUnitario")}
-                      placeholder={formData.construimosAG ? "0" : "N/A"}
-                      disabled={combinedSubmitting || !formData.construimosAG}
-                      className={`w-full font-medium ${!formData.construimosAG ? 'bg-muted italic' : ''}`}
-                    />
-                    {errors.precioUnitario && <p className="text-sm text-destructive truncate">{errors.precioUnitario}</p>}
-                  </div>
-
-                  <div className="space-y-2 min-w-0">
-                    <Label htmlFor="precioTotal" className="truncate block">Precio Total</Label>
-                    <Input
-                      id="precioTotal"
-                      type="text"
-                      value={formData.construimosAG ? formatCurrency(formData.precioTotal) : "N/A"}
-                      readOnly
-                      className={`bg-muted w-full font-bold ${!formData.construimosAG ? 'italic' : ''}`}
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="materialesObservaciones">Materiales y/o Observaciones</Label>
-                  <Textarea
-                    id="materialesObservaciones"
-                    value={formData.materialesObservaciones}
-                    onChange={(e) => setFormData({ ...formData, materialesObservaciones: e.target.value })}
-                    placeholder="Materiales requeridos u observaciones adicionales..."
+                <div className="space-y-2 min-w-0">
+                  <Label htmlFor="unidad" className="truncate block">Unidad</Label>
+                  <Select
+                    value={formData.unidad}
+                    onValueChange={(value) => setFormData({ ...formData, unidad: value })}
                     disabled={combinedSubmitting}
-                    rows={2}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue className="truncate" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="UND">UND</SelectItem>
+                      <SelectItem value="M2">M2</SelectItem>
+                      <SelectItem value="M3">M3</SelectItem>
+                      <SelectItem value="ML">ML</SelectItem>
+                      <SelectItem value="KM">KM</SelectItem>
+                      <SelectItem value="KG">KG</SelectItem>
+                      <SelectItem value="LT">LT</SelectItem>
+                      <SelectItem value="GLB">GLB</SelectItem>
+                      <SelectItem value="HR">HR</SelectItem>
+                      <SelectItem value="DIA">DIA</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2 min-w-0">
+                  <Label htmlFor="precioUnitario" className="whitespace-nowrap truncate block">
+                    Precio U. <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    id="precioUnitario"
+                    type="text"
+                    value={formData.construimosAG ? formatCurrency(formData.precioUnitario) : "N/A"}
+                    onChange={(e) => handleCurrencyChange(e, "precioUnitario")}
+                    placeholder={formData.construimosAG ? "0" : "N/A"}
+                    disabled={combinedSubmitting || !formData.construimosAG}
+                    className={`w-full font-medium ${!formData.construimosAG ? 'bg-muted italic' : ''}`}
+                  />
+                  {errors.precioUnitario && <p className="text-sm text-destructive truncate">{errors.precioUnitario}</p>}
+                </div>
+
+                <div className="space-y-2 min-w-0">
+                  <Label htmlFor="precioTotal" className="truncate block">Precio Total</Label>
+                  <Input
+                    id="precioTotal"
+                    type="text"
+                    value={formData.construimosAG ? formatCurrency(formData.precioTotal) : "N/A"}
+                    readOnly
+                    className={`bg-muted w-full font-bold ${!formData.construimosAG ? 'italic' : ''}`}
                   />
                 </div>
               </div>
 
-            {/* Other Fields */}
-            <div className="space-y-2">
-              <Label htmlFor="estimatedExecutionTime" className="whitespace-nowrap truncate block">
-                Tiempo Estimado (horas) <span className="text-red-500">*</span>
-              </Label>
-              <Input
-                id="estimatedExecutionTime"
-                type="number"
-                step="any"
-                min="1"
-                value={formData.estimatedExecutionTime}
-                onChange={(e) =>
-                  setFormData({
-                    ...formData,
-                    estimatedExecutionTime: e.target.value,
-                  })
-                }
-                placeholder="Ex: 40"
-                aria-invalid={!!errors.estimatedExecutionTime}
-                disabled={combinedSubmitting || isEditingQuote}
-                className={isEditing ? "bg-muted dark:text-black/80" : "dark:text-black/80"}
-              />
-              {errors.estimatedExecutionTime && (
-                <p className="text-sm text-destructive">
-                  {errors.estimatedExecutionTime}
-                </p>
-              )}
-              {isEditing && (
-                <p className="text-xs text-muted-foreground">
-                  El tiempo estimado no puede ser modificado
-                </p>
-              )}
+              <div className="space-y-2">
+                <Label htmlFor="materialesObservaciones">Materiales y/o Observaciones</Label>
+                <Textarea
+                  id="materialesObservaciones"
+                  value={formData.materialesObservaciones}
+                  onChange={(e) => setFormData({ ...formData, materialesObservaciones: e.target.value })}
+                  placeholder="Materiales requeridos u observaciones adicionales..."
+                  disabled={combinedSubmitting}
+                  rows={2}
+                />
+              </div>
             </div>
 
             <DialogFooter className="flex-col-reverse sm:flex-row gap-2">
