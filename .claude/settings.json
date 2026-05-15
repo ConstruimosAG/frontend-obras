@@ -6,7 +6,8 @@
       "Bash(xargs grep *)"
     ],
     "additionalDirectories": [
-      "c:\\Users\\Sebas\\OneDrive\\Desktop\\backend-obras\\src\\validations"
+      "c:\\Users\\Sebas\\OneDrive\\Desktop\\backend-obras\\src\\validations",
+      "c:\\Users\\Sebas\\OneDrive\\Desktop\\backend-obras\\src\\controllers"
     ]
   }
 }
