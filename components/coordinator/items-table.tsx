@@ -114,6 +114,36 @@ function SortableTableRow({
   );
 }
 
+function SortableMobileCard({
+  id,
+  isDragEnabled,
+  children,
+}: {
+  id: number;
+  isDragEnabled: boolean;
+  children: (dragHandle: React.ReactNode) => React.ReactNode;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
+  const dragHandle = isDragEnabled ? (
+    <button
+      {...listeners}
+      className="touch-none shrink-0 cursor-grab active:cursor-grabbing p-1 -mr-1 text-muted-foreground hover:text-foreground rounded"
+      title="Arrastrar para reordenar"
+    >
+      <GripVertical className="h-5 w-5" />
+    </button>
+  ) : null;
+  return (
+    <div
+      ref={setNodeRef}
+      style={{ transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1 }}
+      {...attributes}
+    >
+      {children(dragHandle)}
+    </div>
+  );
+}
+
 interface ItemsTableProps {
   work: Work;
   coordinator?: boolean;
@@ -384,6 +414,10 @@ export function ItemsTable({
   };
 
   const hasFinishedQuotation = (item: Item) => {
+    return item.quoteItems?.some((quote: any) => quote.quoteWorkId !== null);
+  };
+
+  const isLockedForCoordinator = (item: Item) => {
     return item.quoteItems?.some((quote: any) => 
       quote.quoteWorkId !== null || 
       (!quote.ConstruimosAG && Number(quote.totalContractor) > 0 && Number(quote.subtotal) > 0)
@@ -1274,6 +1308,7 @@ export function ItemsTable({
                         >
                         {getOrderedItems(group).map((item: Item) => {
                           const isFinished = hasFinishedQuotation(item);
+                          const lockedForCoordinator = isLockedForCoordinator(item);
                           return (
                             <SortableTableRow key={item.id} id={item.id} isDragEnabled={canReorder} className="hover:bg-muted/30">
                               <TableCell className="border border-border align-middle py-2 min-w-[200px]">
@@ -1575,7 +1610,7 @@ export function ItemsTable({
                                         </Button>
                                       )}
 
-                                      {(isAdmin || !work.finalized) && !(coordinator && isFinished) && (
+                                      {(isAdmin || !work.finalized) && !(coordinator && lockedForCoordinator) && (
                                         <Button
                                           variant="outline"
                                           size="sm"
@@ -1598,7 +1633,7 @@ export function ItemsTable({
                                         </Button>
                                       )}
 
-                                      {(isAdmin || !work.finalized) && !(coordinator && isFinished) && (
+                                      {(isAdmin || !work.finalized) && !(coordinator && lockedForCoordinator) && (
                                         <Button
                                           variant="outline"
                                           size="sm"
@@ -1640,11 +1675,22 @@ export function ItemsTable({
                   </div>
 
                   {/* Mobile Cards */}
+                  <DndContext
+                    sensors={dndSensors}
+                    collisionDetection={closestCenter}
+                    onDragEnd={(e) => handleDragEnd(e, group.title)}
+                  >
                   <div className="md:hidden space-y-3">
+                    <SortableContext
+                      items={getOrderedItems(group).map((i) => i.id)}
+                      strategy={verticalListSortingStrategy}
+                    >
                     {getOrderedItems(group).map((item: Item) => {
                       const isFinished = hasFinishedQuotation(item);
                       return (
-                        <div key={item.id} className="border rounded-lg bg-card p-4 space-y-3">
+                        <SortableMobileCard key={item.id} id={item.id} isDragEnabled={canReorder}>
+                        {(dragHandle) => (
+                        <div className="border rounded-lg bg-card p-4 space-y-3">
                           <div className="flex items-start justify-between gap-2">
                             <div className="min-w-0 flex-1">
                               <div className="flex items-center gap-2 mb-2 flex-wrap">
@@ -1668,6 +1714,7 @@ export function ItemsTable({
                                 {item.description}
                               </p>
                             </div>
+                            {dragHandle}
                           </div>
 
                           <div className="grid grid-cols-2 gap-y-3 gap-x-2 text-sm">
@@ -2031,9 +2078,13 @@ export function ItemsTable({
                             )}
                           </div>
                         </div>
+                        )}
+                        </SortableMobileCard>
                       );
                     })}
+                    </SortableContext>
                   </div>
+                  </DndContext>
                 </>
               )}
             </div>
