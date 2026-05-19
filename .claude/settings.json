@@ -3,11 +3,13 @@
     "allow": [
       "Read(//c/Users/Sebas/OneDrive/Desktop/backend-obras/src/validations/**)",
       "Read(//c/Users/Sebas/OneDrive/Desktop/backend-obras/src/**)",
-      "Bash(xargs grep *)"
+      "Bash(xargs grep *)",
+      "Read(//c/Users/Sebas/OneDrive/Desktop/backend-obras/**)"
     ],
     "additionalDirectories": [
       "c:\\Users\\Sebas\\OneDrive\\Desktop\\backend-obras\\src\\validations",
-      "c:\\Users\\Sebas\\OneDrive\\Desktop\\backend-obras\\src\\controllers"
+      "c:\\Users\\Sebas\\OneDrive\\Desktop\\backend-obras\\src\\controllers",
+      "c:\\Users\\Sebas\\OneDrive\\Desktop\\backend-obras\\src\\utils"
     ]
   }
 }
