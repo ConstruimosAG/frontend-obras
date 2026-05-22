@@ -31,7 +31,7 @@ export function useWorks() {
     try {
       if (!baseUrl) throw new Error("NEXT_PUBLIC_BACKEND_URL es obligatoria");
 
-      const res = await fetchClient(`${baseUrl}/api/works`);
+      const res = await fetchClient(`${baseUrl}/api/works?limit=500`);
 
       if (!res.ok) throw new Error(`Error fetching works: ${res.status}`);
 
