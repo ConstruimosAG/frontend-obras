@@ -132,8 +132,8 @@ export function WorksPanel({ coordinator = true, path = "admin" }: { coordinator
         const unfinalized = filteredWorks.filter(work => {
           const items = work.items || [];
           if (items.length === 0) return true;
-          const finalizedItems = items.filter(item => 
-            item.quoteItems?.some(qi => Number(qi.totalContractor) > 0 && Number(qi.subtotal) > 0)
+          const finalizedItems = items.filter(item =>
+            item.quoteItems?.some((qi: any) => qi.quoteWorkId !== null)
           ).length;
           return finalizedItems < items.length;
         });
@@ -141,8 +141,8 @@ export function WorksPanel({ coordinator = true, path = "admin" }: { coordinator
         const finalized = filteredWorks.filter(work => {
           const items = work.items || [];
           if (items.length === 0) return false;
-          const finalizedItems = items.filter(item => 
-            item.quoteItems?.some(qi => Number(qi.totalContractor) > 0 && Number(qi.subtotal) > 0)
+          const finalizedItems = items.filter(item =>
+            item.quoteItems?.some((qi: any) => qi.quoteWorkId !== null)
           ).length;
           return finalizedItems === items.length;
         });

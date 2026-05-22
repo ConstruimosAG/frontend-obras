@@ -79,6 +79,9 @@ export function QuoteItemForm({
         };
       }
     }
+    // Contratistas externos siempre crean un registro nuevo, nunca reutilizan uno existente
+    if (isExternal) return { description: "", measure: 0, unit: "UND", unitValue: 0, materials: "" };
+
     // Si no hay initial data explícita, buscar en el ítem la cotización inicial
     if (item?.quoteItems?.length > 0) {
       // Prioridad 1: Una cotización ya asignada a este contratista
@@ -135,9 +138,10 @@ export function QuoteItemForm({
   const [referenceQuoteId, setReferenceQuoteId] = useState<number | null>(null);
 
   useEffect(() => {
+    if (isExternal) return;
     if (item?.quoteItems?.length > 0) {
       const initialQuote = item.quoteItems.find((q: any) => q.assignedContractorId === currentUser?.id)
-                        || item.quoteItems.find((q: any) => !q.assignedContractorId && !q.ConstruimosAG) 
+                        || item.quoteItems.find((q: any) => !q.assignedContractorId && !q.ConstruimosAG)
                         || item.quoteItems.find((q: any) => q.ConstruimosAG);
       
       if (initialQuote) {

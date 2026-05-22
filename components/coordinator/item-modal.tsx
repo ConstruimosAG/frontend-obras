@@ -211,19 +211,17 @@ export function ItemModal({
 
     try {
       // Validaciones si se llenan campos de cotización
-      if (formData.actividad.trim() || formData.cantidad || formData.precioUnitario) {
-        if (!formData.actividad.trim()) {
-          setErrors(prev => ({ ...prev, actividad: "La actividad es obligatoria si se ingresa información de cotización" }));
-          return;
-        }
-        if (formData.cantidad && Number.parseFloat(formData.cantidad.toString().replace(/,/g, ".")) <= 0) {
-          setErrors(prev => ({ ...prev, cantidad: "La cantidad debe ser mayor a 0" }));
-          return;
-        }
-        if (formData.construimosAG && (!formData.precioUnitario || Number.parseFloat(formData.precioUnitario.toString().replace(/,/g, ".")) <= 0)) {
-          setErrors(prev => ({ ...prev, precioUnitario: "El precio unitario es obligatorio para Construimos AG" }));
-          return;
-        }
+      if (isEditingQuote && formData.actividad.trim() === "" && (formData.cantidad || formData.precioUnitario)) {
+        setErrors(prev => ({ ...prev, actividad: "La actividad es obligatoria" }));
+        return;
+      }
+      if (formData.cantidad && Number.parseFloat(formData.cantidad.toString().replace(/,/g, ".")) <= 0) {
+        setErrors(prev => ({ ...prev, cantidad: "La cantidad debe ser mayor a 0" }));
+        return;
+      }
+      if (formData.construimosAG && (!formData.precioUnitario || Number.parseFloat(formData.precioUnitario.toString().replace(/,/g, ".")) <= 0)) {
+        setErrors(prev => ({ ...prev, precioUnitario: "El precio unitario es obligatorio para Construimos AG" }));
+        return;
       }
 
       if (!isEditingQuote && titles && titles.length > 0) {
@@ -241,7 +239,7 @@ export function ItemModal({
         construimosAG: formData.construimosAG && !isEditingQuote,
       };
 
-      if (formData.actividad.trim() || isEditingQuote) {
+      if (formData.cantidad || isEditingQuote) {
         // Normalize for API
         const cantStr = formData.cantidad.toString().replace(/,/g, ".");
         const puStr = formData.precioUnitario.toString().replace(/,/g, ".");
@@ -346,10 +344,12 @@ export function ItemModal({
                 <div className="p-4 bg-purple-50 dark:bg-purple-900/10 rounded-lg border border-purple-100 dark:border-purple-800">
                   <h4 className="text-sm font-semibold text-purple-600 mb-3">Cotización Inicial</h4>
                   <div className="space-y-2 text-sm">
-                    <div>
-                      <span className="font-medium text-muted-foreground">Actividad:</span>
-                      <p className="mt-1 break-words">{pendingPayload.quoteData.actividad}</p>
-                    </div>
+                    {pendingPayload.quoteData.actividad && (
+                      <div>
+                        <span className="font-medium text-muted-foreground">Actividad:</span>
+                        <p className="mt-1 break-words">{pendingPayload.quoteData.actividad}</p>
+                      </div>
+                    )}
                     <div className="grid grid-cols-2 gap-2">
                       <div>
                         <span className="font-medium text-muted-foreground">Cantidad:</span>
@@ -534,17 +534,19 @@ export function ItemModal({
             <div className="space-y-4 p-4 border rounded-md bg-muted/20">
               <div className="font-semibold text-sm">Información de la Actividad / Cotización</div>
 
-              <div className="space-y-2">
-                <Label htmlFor="actividad">Actividad <span className="text-red-500">*</span></Label>
-                <Textarea
-                  id="actividad"
-                  value={formData.actividad}
-                  onChange={(e) => setFormData({ ...formData, actividad: e.target.value })}
-                  placeholder="Descripción de la actividad..."
-                  disabled={combinedSubmitting}
-                />
-                {errors.actividad && <p className="text-sm text-destructive">{errors.actividad}</p>}
-              </div>
+              {isEditingQuote && (
+                <div className="space-y-2">
+                  <Label htmlFor="actividad">Actividad <span className="text-red-500">*</span></Label>
+                  <Textarea
+                    id="actividad"
+                    value={formData.actividad}
+                    onChange={(e) => setFormData({ ...formData, actividad: e.target.value })}
+                    placeholder="Descripción de la actividad..."
+                    disabled={combinedSubmitting}
+                  />
+                  {errors.actividad && <p className="text-sm text-destructive">{errors.actividad}</p>}
+                </div>
+              )}
 
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div className="space-y-2 min-w-0">
