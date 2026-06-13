@@ -1025,7 +1025,7 @@ export function ItemsTable({
     }
   };
 
-  const handleUpdateExtras = async (data: { personnelRequired: Record<string, unknown>; extras: Record<string, unknown> }) => {
+  const handleUpdateExtras = async (data: { personnelRequired: Record<string, unknown>; extras: Record<string, unknown>; workDuration?: string | null }) => {
     try {
       setUpdatingExtras(true);
       const baseUrl = process.env.NEXT_PUBLIC_BACKEND_URL;
@@ -1036,6 +1036,7 @@ export function ItemsTable({
         body: JSON.stringify({
           personnelRequired: data.personnelRequired,
           extras: data.extras,
+          workDuration: data.workDuration ?? null,
         }),
       });
 
@@ -1321,6 +1322,11 @@ export function ItemsTable({
                                 <span className="text-xs font-semibold text-purple-700 dark:text-purple-400 break-words whitespace-normal">
                                   {getPersonnelDisplay(item)}
                                 </span>
+                                {item.contractorId === 3 && item.otherContractorName && (
+                                  <p className="text-xs text-muted-foreground break-words whitespace-normal mt-0.5">
+                                    {item.otherContractorName}
+                                  </p>
+                                )}
                               </TableCell>
                               {(() => {
                                 const finalizedQuote = item.quoteItems?.find((q: any) => q.quoteWorkId !== null);
@@ -1724,6 +1730,9 @@ export function ItemsTable({
                                 <User className="h-3 w-3 text-purple-500" />
                                 <span className="font-semibold text-purple-700">{getPersonnelDisplay(item)}</span>
                               </div>
+                              {item.contractorId === 3 && item.otherContractorName && (
+                                <p className="text-xs text-muted-foreground ml-5">{item.otherContractorName}</p>
+                              )}
                             </div>
                             {(() => {
                               const finalizedQuote = (item.quoteItems as any)?.find((q: any) => q.quoteWorkId !== null);

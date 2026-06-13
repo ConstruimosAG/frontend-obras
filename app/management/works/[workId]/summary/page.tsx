@@ -2,7 +2,7 @@
 
 import { use, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Loader2, Pencil, TrendingUp, AlertCircle, Users, Wrench, ClipboardList, Info } from "lucide-react";
+import { ArrowLeft, Loader2, Pencil, TrendingUp, AlertCircle, Users, Wrench, ClipboardList, Info, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -446,6 +446,15 @@ export default function WorkSummaryPage({ params }: WorkSummaryPageProps) {
                                 <CardTitle className="text-lg font-bold">Adicionales y Logística</CardTitle>
                             </CardHeader>
                             <CardContent className="pt-6 space-y-6">
+                                {work.workDuration && (
+                                    <div className="flex items-center gap-3 bg-purple-50/30 rounded-lg border border-purple-100 px-4 py-3">
+                                        <Clock className="h-4 w-4 text-purple-500 shrink-0" />
+                                        <div>
+                                            <span className="text-xs text-purple-600 uppercase tracking-widest font-bold">Duración de la obra</span>
+                                            <p className="text-sm font-semibold text-gray-800 dark:text-gray-200 mt-0.5">{work.workDuration}</p>
+                                        </div>
+                                    </div>
+                                )}
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                     {work.extras?.andamio > 0 && (
                                         <div className="flex justify-between items-center bg-purple-50/20 p-3 rounded-lg border border-purple-100">

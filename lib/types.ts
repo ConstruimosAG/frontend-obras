@@ -8,6 +8,7 @@ export interface Work {
   personnelRequired?: Record<string, unknown> | null;
   extras?: Record<string, unknown> | null;
   titles?: string[] | null;
+  workDuration?: string | null;
   items?: Item[];
   quote?: QuoteWork;
 }
@@ -28,6 +29,8 @@ export interface Item {
   title?: string | null;
   sortOrder?: number;
   work?: Work;
+  otherContractorName?: string | null;
+  visualDocumentation?: string[];
 }
 
 export interface QuoteItem {
@@ -66,6 +69,7 @@ export interface User {
   role: string;
   identifier: string;
   password: string;
+  mail?: string;
   createdAt: Date;
   updatedAt: Date;
   items?: Item[];

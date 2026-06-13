@@ -55,19 +55,36 @@ export function useItems(workId?: number) {
       try {
         if (!baseUrl) throw new Error("NEXT_PUBLIC_BACKEND_URL is not defined");
 
-        // Solo enviamos los campos que acepta el endpoint POST /api/items
-        const body: Record<string, unknown> = {
-          workId: payload.workId,
-          description: payload.description,
-        };
-        if (payload.contractorId !== undefined) body.contractorId = payload.contractorId ?? null;
-        if (payload.estimatedExecutionTime !== undefined) body.estimatedExecutionTime = payload.estimatedExecutionTime ?? null;
-        if (payload.active !== undefined) body.active = payload.active;
-        if (payload.title !== undefined) body.title = payload.title ?? null;
+        const files: File[] = payload.files ?? [];
+        let reqBody: BodyInit;
+
+        if (files.length > 0) {
+          const fd = new FormData();
+          fd.append("workId", String(payload.workId));
+          fd.append("description", payload.description);
+          if (payload.contractorId != null) fd.append("contractorId", String(payload.contractorId));
+          if (payload.estimatedExecutionTime != null) fd.append("estimatedExecutionTime", String(payload.estimatedExecutionTime));
+          if (payload.active !== undefined) fd.append("active", String(payload.active));
+          if (payload.title != null) fd.append("title", payload.title);
+          if (payload.otherContractorName != null) fd.append("otherContractorName", payload.otherContractorName);
+          files.forEach((f) => fd.append("files", f));
+          reqBody = fd;
+        } else {
+          const body: Record<string, unknown> = {
+            workId: payload.workId,
+            description: payload.description,
+          };
+          if (payload.contractorId !== undefined) body.contractorId = payload.contractorId ?? null;
+          if (payload.estimatedExecutionTime !== undefined) body.estimatedExecutionTime = payload.estimatedExecutionTime ?? null;
+          if (payload.active !== undefined) body.active = payload.active;
+          if (payload.title !== undefined) body.title = payload.title ?? null;
+          if (payload.otherContractorName !== undefined) body.otherContractorName = payload.otherContractorName ?? null;
+          reqBody = JSON.stringify(body);
+        }
 
         const res = await fetchClient(`${baseUrl}/api/items`, {
           method: "POST",
-          body: JSON.stringify(body),
+          body: reqBody,
         });
         if (!res.ok) {
           const text = await res.text().catch(() => null);
@@ -128,6 +145,7 @@ export function useItems(workId?: number) {
         if (payload.estimatedExecutionTime !== undefined) body.estimatedExecutionTime = payload.estimatedExecutionTime ?? null;
         if (payload.active !== undefined) body.active = payload.active;
         if (payload.title !== undefined) body.title = payload.title ?? null;
+        if (payload.otherContractorName !== undefined) body.otherContractorName = payload.otherContractorName ?? null;
 
         const res = await fetchClient(`${baseUrl}/api/items/${id}`, {
           method: "PUT",

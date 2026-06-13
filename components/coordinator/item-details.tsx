@@ -11,6 +11,7 @@ import {
   Info,
   Building2,
   DollarSign,
+  ImageIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -112,7 +113,26 @@ export function ItemDetails({
           </p>
         </div>
 
-        {/* Removed Personnel Requerido and Adicionales blocks */}
+        {/* Documentación Visual */}
+        {item.visualDocumentation && item.visualDocumentation.length > 0 && (
+          <div className="p-4 sm:p-6 space-y-3">
+            <h2 className="font-semibold text-base sm:text-lg flex items-center gap-2">
+              <ImageIcon className="h-5 w-5 text-foreground" />
+              Documentación Visual
+            </h2>
+            <div className="flex flex-wrap gap-3">
+              {item.visualDocumentation.map((url, i) => (
+                <a key={i} href={url} target="_blank" rel="noopener noreferrer" className="block">
+                  <img
+                    src={url}
+                    alt={`Imagen ${i + 1}`}
+                    className="h-32 w-32 object-cover rounded-md border hover:opacity-90 transition-opacity cursor-pointer"
+                  />
+                </a>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Información Principal */}
         <div className="p-4 sm:p-6 space-y-4">
@@ -139,6 +159,11 @@ export function ItemDetails({
                     ? "Construimos AG"
                     : (item.contractor?.name || "No se ha asignado un contratista")}
                 </p>
+                {item.otherContractorName && (
+                  <p className="text-sm text-muted-foreground mt-0.5">
+                    Nombre: <span className="font-medium text-foreground">{item.otherContractorName}</span>
+                  </p>
+                )}
               </div>
             </div>
             <div className="flex items-start gap-3">

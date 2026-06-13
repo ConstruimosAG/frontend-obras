@@ -24,6 +24,7 @@ interface WorkExtrasModalProps {
     onSubmit: (data: {
         personnelRequired: Record<string, unknown>;
         extras: Record<string, unknown>;
+        workDuration?: string | null;
     }) => Promise<void> | void;
     isSubmitting?: boolean;
 }
@@ -52,6 +53,7 @@ export function WorkExtrasModal({
         otroExtrasName: "",
         otroExtrasQuantity: "",
         notes: "",
+        workDuration: "",
     });
 
     useEffect(() => {
@@ -75,6 +77,7 @@ export function WorkExtrasModal({
             otroExtrasName: String(extras.otroName || ""),
             otroExtrasQuantity: String(extras.otroQuantity || ""),
             notes: String(extras.notes || ""),
+            workDuration: work.workDuration || "",
         });
     }, [work, open]);
 
@@ -120,6 +123,7 @@ export function WorkExtrasModal({
         await onSubmit({
             personnelRequired: buildPersonnelRequired(),
             extras: buildExtras(),
+            workDuration: formData.workDuration || null,
         });
         onOpenChange(false);
     };
@@ -304,6 +308,19 @@ export function WorkExtrasModal({
                                 </div>
                             </div>
                         </div>
+                    </div>
+
+                    {/* Duración de la Obra */}
+                    <div className="space-y-2">
+                        <Label htmlFor="workDuration">Duración de la Obra</Label>
+                        <Input
+                            id="workDuration"
+                            value={formData.workDuration}
+                            onChange={(e) => setFormData({ ...formData, workDuration: e.target.value })}
+                            placeholder="Ej: 3 meses, 45 días hábiles..."
+                            disabled={isSubmitting || isReadOnly}
+                            className="dark:text-white"
+                        />
                     </div>
 
                     {/* Notas Adicionales */}

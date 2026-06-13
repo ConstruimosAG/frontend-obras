@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useEffect, useState } from "react";
+import { use, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Loader2, Save, Building2, User, DollarSign, Percent, FileText, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -44,6 +44,11 @@ export default function ManagementQuoteForm({ params }: ManagementQuoteFormProps
   const [materialsDesc, setMaterialsDesc] = useState<string>("");
   const [materialCost, setMaterialCost] = useState<number>(0);
   const [materialCostDisplay, setMaterialCostDisplay] = useState<string>("");
+
+  // Estado y ref para el valor unitario AG (bidireccional con agPercentage)
+  const [unitValueAGNumeric, setUnitValueAGNumeric] = useState<number>(0);
+  const [unitValueAGDisplay, setUnitValueAGDisplay] = useState<string>("");
+  const lastEditedAGRef = useRef<"percentage" | "unitValue">("percentage");
 
   // Estados para edición de subquotation (solo ConstruimosAG)
   const [editDescripcion, setEditDescripcion] = useState<string>("");
@@ -206,15 +211,60 @@ export default function ManagementQuoteForm({ params }: ManagementQuoteFormProps
     return calculateTotalContractor() + calculateAGValue();
   };
 
+  // Sincroniza el display del valor unitario AG cuando cambia el % o el costo base
+  useEffect(() => {
+    if (lastEditedAGRef.current === "unitValue") return;
+    const subquotes = quote?.subquotations as any;
+    const firstKey = subquotes ? Object.keys(subquotes)[0] : null;
+    const qty = isAG
+      ? editCantidad
+      : Number(firstKey ? subquotes[firstKey]?.measure || 0 : 0);
+    const total = calculateTotalContractorWithAG();
+    if (qty > 0 && total > 0) {
+      const uv = total / qty;
+      setUnitValueAGNumeric(uv);
+      setUnitValueAGDisplay(formatNumberWithThousands(uv));
+    } else {
+      setUnitValueAGNumeric(0);
+      setUnitValueAGDisplay("");
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [agPercentage, materialCost, editCantidad, editPrecioUnitario, quote, isAG]);
+
+  // Maneja el input del valor unitario AG y back-calcula el %
+  const handleUnitValueAGInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const input = e.target;
+    const digitsOnly = input.value.replace(/[^0-9]/g, "");
+    const numeric = Number(digitsOnly) || 0;
+    setUnitValueAGNumeric(numeric);
+    const formatted = numeric > 0
+      ? numeric.toLocaleString("es-CO", { minimumFractionDigits: 0, maximumFractionDigits: 0 })
+      : "";
+    setUnitValueAGDisplay(formatted);
+    requestAnimationFrame(() => {
+      input.selectionStart = formatted.length;
+      input.selectionEnd = formatted.length;
+    });
+
+    lastEditedAGRef.current = "unitValue";
+    const subquotes = quote?.subquotations as any;
+    const firstKey = subquotes ? Object.keys(subquotes)[0] : null;
+    const qty = isAG
+      ? editCantidad
+      : Number(firstKey ? subquotes[firstKey]?.measure || 0 : 0);
+    const base = calculateTotalContractor();
+    if (qty > 0 && base > 0 && numeric > 0) {
+      const newPct = ((numeric * qty) / base - 1) * 100;
+      const clamped = Math.max(0.01, parseFloat(newPct.toFixed(2)));
+      setAgPercentage(clamped);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (agPercentage <= 0) {
       toast.error("Debes ingresar un porcentaje AG válido");
-      return;
-    }
-    if (agPercentage > 100) {
-      toast.error("El porcentaje AG no puede ser mayor a 100");
       return;
     }
     if (materialCost < 0) {
@@ -689,18 +739,13 @@ export default function ManagementQuoteForm({ params }: ManagementQuoteFormProps
                   <div className="relative">
                     <Input
                       type="number"
-                      min="0"
-                      max="100"
+                      min="0.01"
                       step="0.01"
                       value={agPercentage || ""}
                       onChange={(e) => {
+                        lastEditedAGRef.current = "percentage";
                         const value = Number.parseFloat(e.target.value) || 0;
-                        if (value > 100) {
-                          setAgPercentage(100);
-                          toast.warning("El porcentaje AG no puede ser mayor a 100%");
-                        } else {
-                          setAgPercentage(value);
-                        }
+                        setAgPercentage(value);
                       }}
                       placeholder="0.00"
                       className="pr-8"
@@ -708,27 +753,39 @@ export default function ManagementQuoteForm({ params }: ManagementQuoteFormProps
                     />
                     <Percent className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   </div>
-                  <p className="text-xs text-muted-foreground">Porcentaje de administración y gestión (máx. 100%)</p>
+                  <p className="text-xs text-muted-foreground">Porcentaje de administración y gestión (mayor a 0)</p>
                 </div>
               </div>
 
-              {/* Valor unitario AG actual */}
-              {(() => {
-                const qty = isAG ? editCantidad : Number((subqItems[0] as any)?.measure || 0);
-                const total = calculateTotalContractorWithAG();
-                if (qty <= 0 || total <= 0) return null;
-                const unitValue = total / qty;
-                return (
-                  <div className="flex items-center justify-between rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 px-4 py-3 mt-2">
-                    <span className="text-sm font-medium text-blue-700 dark:text-blue-300">
-                      Valor unitario AG actual:
-                    </span>
-                    <span className="text-sm font-bold text-blue-700 dark:text-blue-300 tabular-nums">
-                      ${formatCurrency(unitValue)}
-                    </span>
+              {/* Valor unitario AG actual — bidireccional con % AG */}
+              {(unitValueAGDisplay || agPercentage > 0) && (
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-semibold uppercase tracking-wider text-blue-600 dark:text-blue-400">
+                    Valor Unitario AG Actual
+                  </Label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-blue-600 dark:text-blue-400 text-sm">$</span>
+                    <Input
+                      type="text"
+                      value={unitValueAGDisplay}
+                      onChange={handleUnitValueAGInput}
+                      onFocus={() =>
+                        setUnitValueAGDisplay(unitValueAGNumeric > 0 ? String(Math.round(unitValueAGNumeric)) : "")
+                      }
+                      onBlur={() => {
+                        if (unitValueAGNumeric > 0) {
+                          setUnitValueAGDisplay(formatNumberWithThousands(unitValueAGNumeric));
+                        }
+                      }}
+                      placeholder="0"
+                      className="pl-7 border-blue-200 dark:border-blue-800 focus-visible:ring-blue-400"
+                    />
                   </div>
-                );
-              })()}
+                  <p className="text-xs text-blue-500 dark:text-blue-400">
+                    Edita el valor unitario para calcular el % AG automáticamente, o edita el % y este se actualiza
+                  </p>
+                </div>
+              )}
             </CardContent>
           </Card>
 

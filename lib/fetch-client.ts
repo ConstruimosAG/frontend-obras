@@ -9,13 +9,16 @@ type FetchOptions = RequestInit & {
 
 export async function fetchClient(url: string, options: FetchOptions = {}) {
   // Ensure we send cookies by default if not overridden
+  const isFormData = options.body instanceof FormData;
   const defaultOptions: FetchOptions = {
     credentials: "include",
     ...options,
-    headers: {
-      "Content-Type": "application/json",
-      ...(options.headers as Record<string, string>),
-    },
+    headers: isFormData
+      ? { ...(options.headers as Record<string, string>) }
+      : {
+          "Content-Type": "application/json",
+          ...(options.headers as Record<string, string>),
+        },
   };
 
   try {

@@ -2,7 +2,16 @@
   "permissions": {
     "allow": [
       "Bash(npm install *)",
-      "Bash(npx tsc *)"
+      "Bash(npx tsc *)",
+      "Bash(ls -la \"C:\\\\Users\\\\Sebas\\\\OneDrive\\\\Desktop\\\\\" | grep -i cotizaciones)",
+      "Read(//c/Users/Sebas/OneDrive/**)",
+      "PowerShell(Get-ChildItem \"C:\\\\Users\\\\Sebas\\\\OneDrive\\\\Desktop\\\\\" | Where-Object { $_.PSIsContainer -and $_.Name -match 'cotizaciones|obras' } | Select-Object Name)",
+      "PowerShell(Get-ChildItem \"C:\\\\Users\\\\Sebas\\\\OneDrive\\\\Desktop\\\\sistema-cotizaciones-construimosag\" -Recurse | Where-Object { $_.Extension -match '\\\\.\\(ts|js|env\\)$' -or $_.Name -match 'prisma|schema' } | Select-Object FullName | Sort-Object)",
+      "Bash(grep -r \"RegisterCaseAction\" \"c:/Users/Sebas/OneDrive/Desktop/sistema-cotizaciones-construimosag/src\" ! -path \"*/node_modules/*\")",
+      "Bash(grep -r \"sendBulkEmailsSequential\\\\|emailService\\\\|transporter\" \"c:/Users/Sebas/OneDrive/Desktop/sc-backend/src\" ! -path \"*/node_modules/*\" --include=\"*.js\")",
+      "Bash(npx prisma *)",
+      "Bash(PRISMA_MIGRATE_SKIP_GENERATE=true npx prisma db push)",
+      "Bash(npx next *)"
     ]
   }
 }

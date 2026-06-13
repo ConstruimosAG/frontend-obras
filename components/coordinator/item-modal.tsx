@@ -1,7 +1,7 @@
 "use client";
 
 import type React from "react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { z } from "zod";
 import {
   Dialog,
@@ -24,7 +24,7 @@ import {
 } from "@/components/ui/select";
 import { itemSchema, itemEditSchema } from "@/lib/schemas";
 import type { Item, User } from "@/lib/types";
-import { Loader2, X } from "lucide-react";
+import { Loader2, X, ImagePlus, Trash2 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 
 interface ItemModalProps {
@@ -58,6 +58,9 @@ export function ItemModal({
   const isEditingQuote = Boolean(editingQuoteItem);
   const [showSummary, setShowSummary] = useState(false);
   const [pendingPayload, setPendingPayload] = useState<any>(null);
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [filePreviews, setFilePreviews] = useState<string[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [formData, setFormData] = useState({
     title: "",
     description: "",
@@ -70,12 +73,15 @@ export function ItemModal({
     precioUnitario: "",
     precioTotal: "",
     materialesObservaciones: "",
+    otherContractorName: "",
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
   useEffect(() => {
     if (!open) {
       setShowSummary(false);
       setPendingPayload(null);
+      setSelectedFiles([]);
+      setFilePreviews([]);
       return;
     }
 
@@ -107,6 +113,7 @@ export function ItemModal({
         precioUnitario: subq.unitValue?.toString() || "",
         precioTotal: subq.totalValue?.toString() || editingQuoteItem.subtotal?.toString() || "",
         materialesObservaciones: materialsData?.description || "",
+        otherContractorName: item?.otherContractorName || "",
       });
     } else if (item) {
       // Buscar si tiene una cotización inicial (referencia o ConstruimosAG)
@@ -138,6 +145,7 @@ export function ItemModal({
         precioUnitario: subq.unitValue?.toString() || "",
         precioTotal: subq.totalValue?.toString() || "",
         materialesObservaciones: materialsData?.description || "",
+        otherContractorName: item.otherContractorName || "",
       });
     } else {
       setFormData({
@@ -152,6 +160,7 @@ export function ItemModal({
         precioUnitario: "",
         precioTotal: "",
         materialesObservaciones: "",
+        otherContractorName: "",
       });
     }
     setErrors({});
@@ -203,6 +212,20 @@ export function ItemModal({
     }
   }, [formData.cantidad, formData.precioUnitario]);
 
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newFiles = Array.from(e.target.files ?? []);
+    const combined = [...selectedFiles, ...newFiles].slice(0, 3);
+    setSelectedFiles(combined);
+    setFilePreviews(combined.map((f) => URL.createObjectURL(f)));
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  const removeFile = (index: number) => {
+    const next = selectedFiles.filter((_, i) => i !== index);
+    setSelectedFiles(next);
+    setFilePreviews(next.map((f) => URL.createObjectURL(f)));
+  };
+
   const [localLoading, setLocalLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -237,6 +260,8 @@ export function ItemModal({
         contractorId: formData.contractorId ? Number.parseInt(formData.contractorId, 10) : null,
         active: formData.active,
         construimosAG: formData.construimosAG && !isEditingQuote,
+        otherContractorName: formData.contractorId === "3" ? (formData.otherContractorName || null) : null,
+        files: selectedFiles,
       };
 
       if (formData.cantidad || isEditingQuote) {
@@ -528,6 +553,60 @@ export function ItemModal({
                     )}
                   </div>
                 )}
+              </div>
+            )}
+
+            {/* otherContractorName: solo cuando contractorId === "3" */}
+            {formData.contractorId === "3" && !isEditing && !isEditingQuote && (
+              <div className="space-y-2">
+                <Label htmlFor="otherContractorName">Nombre del Contratista <span className="text-red-500">*</span></Label>
+                <Input
+                  id="otherContractorName"
+                  value={formData.otherContractorName}
+                  onChange={(e) => setFormData({ ...formData, otherContractorName: e.target.value })}
+                  placeholder="Nombre del contratista externo..."
+                  disabled={combinedSubmitting}
+                />
+              </div>
+            )}
+
+            {/* Carga de imágenes (documentación visual) — solo al crear */}
+            {!isEditing && !isEditingQuote && (
+              <div className="space-y-2">
+                <Label>Documentación Visual <span className="text-xs text-muted-foreground">(máx. 3 imágenes, 5 MB c/u, JPG/PNG)</span></Label>
+                <div className="flex flex-wrap gap-3">
+                  {filePreviews.map((src, i) => (
+                    <div key={i} className="relative w-24 h-24 rounded-md overflow-hidden border">
+                      <img src={src} alt={`preview-${i}`} className="w-full h-full object-cover" />
+                      <button
+                        type="button"
+                        className="absolute top-0.5 right-0.5 bg-black/60 rounded-full p-0.5"
+                        onClick={() => removeFile(i)}
+                      >
+                        <Trash2 className="h-3 w-3 text-white" />
+                      </button>
+                    </div>
+                  ))}
+                  {selectedFiles.length < 3 && (
+                    <button
+                      type="button"
+                      className="w-24 h-24 rounded-md border-2 border-dashed border-muted-foreground/40 flex flex-col items-center justify-center gap-1 text-muted-foreground hover:border-purple-400 hover:text-purple-500 transition-colors"
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={combinedSubmitting}
+                    >
+                      <ImagePlus className="h-5 w-5" />
+                      <span className="text-xs">Agregar</span>
+                    </button>
+                  )}
+                </div>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png"
+                  multiple
+                  className="hidden"
+                  onChange={handleFileChange}
+                />
               </div>
             )}
 

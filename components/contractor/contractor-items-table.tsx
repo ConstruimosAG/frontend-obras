@@ -2,15 +2,7 @@
 
 import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import {
-  Search,
-  Eye,
-  ArrowLeft,
-  Calendar,
-  User,
-  Clock,
-  FileText,
-} from "lucide-react";
+import { Search, Eye, Calendar, Clock, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -43,23 +35,48 @@ export function ContractorItemsTable({
   const [searchTerm, setSearchTerm] = useState("");
 
   const filteredItems = useMemo(() => {
-    let result = items;
-    if (searchTerm.trim()) {
-      const term = searchTerm.toLowerCase();
-      result = items.filter((item: Item) => {
-        return item.description.toLowerCase().includes(term);
-      });
-    }
-    return [...result].reverse();
+    if (!searchTerm.trim()) return items;
+    const term = searchTerm.toLowerCase();
+    return items.filter((item: Item) => item.description.toLowerCase().includes(term));
   }, [items, searchTerm]);
+
+  // Extract title order from the work object attached to items
+  const workTitles: string[] = useMemo(() => {
+    const work = (items[0] as any)?.work;
+    return work?.titles ?? [];
+  }, [items]);
+
+  // Group and sort items by title (preserving work.titles order) then by sortOrder within each group
+  const groupedItems = useMemo(() => {
+    const groups: { title: string; items: Item[] }[] = workTitles.map((t) => ({ title: t, items: [] }));
+
+    filteredItems.forEach((item) => {
+      const itemTitle = (item as any).title;
+      const group = groups.find((g) => g.title === itemTitle);
+      if (group) {
+        group.items.push(item);
+      } else {
+        // Item with a title not in work.titles — append to a catch-all
+        let other = groups.find((g) => g.title === "General");
+        if (!other) {
+          other = { title: "General", items: [] };
+          groups.push(other);
+        }
+        other.items.push(item);
+      }
+    });
+
+    // Sort items within each group by sortOrder
+    groups.forEach((g) => {
+      g.items.sort((a, b) => ((a as any).sortOrder ?? 0) - ((b as any).sortOrder ?? 0));
+    });
+
+    return groups.filter((g) => g.items.length > 0);
+  }, [filteredItems, workTitles]);
 
   const formatDate = (date: string | Date) => {
     const d = typeof date === "string" ? new Date(date) : date;
-    return d.toLocaleDateString("es-ES", {
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
-    });
+    return d.toLocaleDateString("es-ES", { day: "2-digit", month: "short", year: "numeric" });
   };
 
   const formatDateLong = (date: string | Date) => {
@@ -73,15 +90,6 @@ export function ContractorItemsTable({
     });
   };
 
-  const getPersonnelDisplay = (contractor: any) => {
-    if (contractor?.name) {
-      if (typeof contractor.name === 'string') {
-        return contractor.name;
-      }
-    }
-    return "No asignado";
-  };
-
   const formatEstimatedTime = (hours: number | null) => {
     if (!hours) return "No establecido";
     if (hours < 24) return `${hours} horas`;
@@ -91,20 +99,15 @@ export function ContractorItemsTable({
 
   const hasQuoted = (item: Item) => {
     return user.assignedQuoteItems?.some(
-      (quote: any) => 
-        quote.itemId === item.id && 
-        Number(quote.totalContractor) > 0 && 
+      (quote: any) =>
+        quote.itemId === item.id &&
+        Number(quote.totalContractor) > 0 &&
         Number(quote.subtotal) > 0
     );
   };
 
-  const handleViewDetails = (itemId: number) => {
-    router.push(`/contractor/items/${itemId}`);
-  };
-
-  const handleQuote = (itemId: number) => {
-    router.push(`/contractor/items/${itemId}/quote`);
-  };
+  const handleViewDetails = (itemId: number) => router.push(`/contractor/items/${itemId}`);
+  const handleQuote = (itemId: number) => router.push(`/contractor/items/${itemId}/quote`);
 
   if (loading) {
     return (
@@ -119,13 +122,9 @@ export function ContractorItemsTable({
       {/* Header */}
       <div className="flex items-start gap-3 sm:gap-4">
         <div className="min-w-0">
-          <h1 className="text-xl sm:text-2xl font-bold text-foreground wrap-break-word">
-            Mis Ítems Asignados
-          </h1>
+          <h1 className="text-xl sm:text-2xl font-bold text-foreground">Mis Ítems Asignados</h1>
           {contractorName && (
-            <p className="text-sm sm:text-base text-muted-foreground">
-              Contratista: {contractorName}
-            </p>
+            <p className="text-sm sm:text-base text-muted-foreground">Contratista: {contractorName}</p>
           )}
           <p className="text-sm sm:text-base text-muted-foreground">
             {items.length} ítem{items.length !== 1 ? "s" : ""} asignado{items.length !== 1 ? "s" : ""}
@@ -144,156 +143,145 @@ export function ContractorItemsTable({
         />
       </div>
 
-      {filteredItems.length > 0 ? (
-        <>
-          {/* Table view for medium and large screens */}
-          <div className="hidden md:block border rounded-lg overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow className="bg-muted/50">
-                  <TableHead className="min-w-50">Descripción</TableHead>
-                  <TableHead className="whitespace-nowrap">Obra</TableHead>
-                  <TableHead className="whitespace-nowrap">Creado</TableHead>
-                  <TableHead className="whitespace-nowrap">
-                    Tiempo Est.
-                  </TableHead>
-                  <TableHead className="text-right whitespace-nowrap">
-                    Acciones
-                  </TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredItems.map((item: Item) => {
-                  const hasQuotedItem = hasQuoted(item);
-                  return (
-                    <TableRow key={item.id}>
-                      <TableCell className="max-w-62.5">
-                        <p className="truncate">{item.description}</p>
-                      </TableCell>
-                      <TableCell className="text-sm whitespace-nowrap">
-                        {(item as any).work?.code || `Work #${item.workId}`}
-                      </TableCell>
-                      <TableCell className="text-sm whitespace-nowrap">
-                        {formatDateLong(item.createdAt)}
-                      </TableCell>
-                      <TableCell className="whitespace-nowrap">
-                        {formatEstimatedTime(item.estimatedExecutionTime)}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center justify-end gap-1">
-
-                          <Button
-                            variant="default"
-                            size="sm"
-                            onClick={() => handleQuote(item.id)}
-                            className={`h-8 px-2 ${!hasQuotedItem ? "bg-green-600 hover:bg-green-700" : "bg-purple-500 hover:bg-purple-600"}`}
-                          >
-                            <FileText className="h-3.5 w-3.5 mr-1" />
-                            <span className="hidden lg:inline">{!hasQuotedItem ? "Cotizar" : "Ver cotización"}</span>
-                            <span className="sr-only lg:hidden">{!hasQuotedItem ? "Cotizar" : "Ver cotización"}</span>
-                          </Button>
-
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleViewDetails(item.id)}
-                            className="h-8 px-2"
-                          >
-                            <Eye className="h-3.5 w-3.5" />
-                            <span className="sr-only">Ver detalles</span>
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          </div>
-
-          {/* Card view for mobile */}
-          <div className="md:hidden space-y-3">
-            {filteredItems.map((item: Item) => {
-              const hasQuotedItem = hasQuoted(item);
-              return (
-                <div
-                  key={item.id}
-                  className="border rounded-lg bg-card p-4 space-y-3"
-                >
-                  {/* Card header */}
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2 mb-2">
-                        {hasQuotedItem ? (
-                          <Badge className="bg-purple-500 hover:bg-purple-600">
-                            Cotizado
-                          </Badge>
-                        ) : (
-                          <Badge className="bg-green-600 hover:bg-green-700">
-                            Pendiente
-                          </Badge>
-                        )}
-                      </div>
-                      <p className="text-sm text-foreground line-clamp-2">
-                        {item.description}
-                      </p>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Obra: {(item as any).work?.code || `Work #${item.workId}`}
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Item info */}
-                  <div className="grid grid-cols-1 gap-2 text-sm text-muted-foreground">
-                    <div className="flex items-center gap-2">
-                      <Calendar className="h-4 w-4 text-primary shrink-0" />
-                      <span className="truncate">
-                        {formatDate(item.createdAt)}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Clock className="h-4 w-4 text-primary shrink-0" />
-                      <span>
-                        {formatEstimatedTime(item.estimatedExecutionTime)}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Action buttons */}
-                  <div className="flex items-center gap-2 pt-2 border-t">
-
-                    <Button
-                      variant="default"
-                      size="sm"
-                      onClick={() => handleQuote(item.id)}
-                      className={`flex-1 ${!hasQuotedItem ? "bg-green-600 hover:bg-green-700" : "bg-purple-500 hover:bg-purple-600"}`}
-                    >
-                      <FileText className="h-4 w-4 mr-1" />
-                      {!hasQuotedItem ? "Cotizar" : "Ver cotización"}
-                    </Button>
-
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleViewDetails(item.id)}
-                      className="flex-1"
-                    >
-                      <Eye className="h-4 w-4 mr-1" />
-                      Detalles
-                    </Button>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </>
-      ) : (
+      {filteredItems.length === 0 ? (
         <div className="text-center py-8 sm:py-12 text-muted-foreground border rounded-lg">
           {searchTerm ? (
             <p>No se encontraron ítems que coincidan con "{searchTerm}"</p>
           ) : (
             <p>No tienes ítems asignados.</p>
           )}
+        </div>
+      ) : (
+        <div className="space-y-8">
+          {groupedItems.map((group, groupIdx) => (
+            <div key={groupIdx} className="space-y-3">
+              {/* Title header */}
+              <div className="flex items-center gap-2 border-b pb-2">
+                <h2 className="text-lg font-bold text-foreground">{group.title}</h2>
+                <span className="text-xs font-semibold text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
+                  {group.items.length}
+                </span>
+              </div>
+
+              {/* Desktop Table */}
+              <div className="hidden md:block border rounded-lg overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-muted/50">
+                      <TableHead className="w-8 text-center">#</TableHead>
+                      <TableHead className="min-w-50">Descripción</TableHead>
+                      <TableHead className="whitespace-nowrap">Obra</TableHead>
+                      <TableHead className="whitespace-nowrap">Creado</TableHead>
+                      <TableHead className="whitespace-nowrap">Tiempo Est.</TableHead>
+                      <TableHead className="text-right whitespace-nowrap">Acciones</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {group.items.map((item: Item, itemIdx: number) => {
+                      const hasQuotedItem = hasQuoted(item);
+                      return (
+                        <TableRow key={item.id}>
+                          <TableCell className="text-center text-xs text-muted-foreground">{itemIdx + 1}</TableCell>
+                          <TableCell className="max-w-62.5">
+                            <p className="truncate">{item.description}</p>
+                          </TableCell>
+                          <TableCell className="text-sm whitespace-nowrap">
+                            {(item as any).work?.code || `Work #${item.workId}`}
+                          </TableCell>
+                          <TableCell className="text-sm whitespace-nowrap">
+                            {formatDateLong(item.createdAt)}
+                          </TableCell>
+                          <TableCell className="whitespace-nowrap">
+                            {formatEstimatedTime(item.estimatedExecutionTime)}
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center justify-end gap-1">
+                              <Button
+                                variant="default"
+                                size="sm"
+                                onClick={() => handleQuote(item.id)}
+                                className={`h-8 px-2 ${!hasQuotedItem ? "bg-green-600 hover:bg-green-700" : "bg-purple-500 hover:bg-purple-600"}`}
+                              >
+                                <FileText className="h-3.5 w-3.5 mr-1" />
+                                <span className="hidden lg:inline">{!hasQuotedItem ? "Cotizar" : "Ver cotización"}</span>
+                                <span className="sr-only lg:hidden">{!hasQuotedItem ? "Cotizar" : "Ver cotización"}</span>
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleViewDetails(item.id)}
+                                className="h-8 px-2"
+                              >
+                                <Eye className="h-3.5 w-3.5" />
+                                <span className="sr-only">Ver detalles</span>
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+
+              {/* Mobile Cards */}
+              <div className="md:hidden space-y-3">
+                {group.items.map((item: Item, itemIdx: number) => {
+                  const hasQuotedItem = hasQuoted(item);
+                  return (
+                    <div key={item.id} className="border rounded-lg bg-card p-4 space-y-3">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2 mb-2">
+                            <span className="text-xs text-muted-foreground font-semibold">#{itemIdx + 1}</span>
+                            {hasQuotedItem ? (
+                              <Badge className="bg-purple-500 hover:bg-purple-600">Cotizado</Badge>
+                            ) : (
+                              <Badge className="bg-green-600 hover:bg-green-700">Pendiente</Badge>
+                            )}
+                          </div>
+                          <p className="text-sm text-foreground line-clamp-2">{item.description}</p>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Obra: {(item as any).work?.code || `Work #${item.workId}`}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-1 gap-2 text-sm text-muted-foreground">
+                        <div className="flex items-center gap-2">
+                          <Calendar className="h-4 w-4 text-primary shrink-0" />
+                          <span className="truncate">{formatDate(item.createdAt)}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Clock className="h-4 w-4 text-primary shrink-0" />
+                          <span>{formatEstimatedTime(item.estimatedExecutionTime)}</span>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 pt-2 border-t">
+                        <Button
+                          variant="default"
+                          size="sm"
+                          onClick={() => handleQuote(item.id)}
+                          className={`flex-1 ${!hasQuotedItem ? "bg-green-600 hover:bg-green-700" : "bg-purple-500 hover:bg-purple-600"}`}
+                        >
+                          <FileText className="h-4 w-4 mr-1" />
+                          {!hasQuotedItem ? "Cotizar" : "Ver cotización"}
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleViewDetails(item.id)}
+                          className="flex-1"
+                        >
+                          <Eye className="h-4 w-4 mr-1" />
+                          Detalles
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
         </div>
       )}
     </div>
