@@ -1333,6 +1333,7 @@ export function ItemsTable({
                                 const agQuote = item.quoteItems?.find((q: any) => q.ConstruimosAG);
                                 const displayQuote = finalizedQuote || agQuote;
                                 const hasAnyQuote = (item.quoteItems?.length ?? 0) > 0;
+                                const hasCompletedQuote = item.quoteItems?.some((q: any) => Number(q.subtotal) > 0) ?? false;
 
                                 if (displayQuote) {
                                   console.log(displayQuote);
@@ -1522,7 +1523,7 @@ export function ItemsTable({
                                   const contractorLabel = item.otherContractorName || item.contractor?.name || "el contratista";
                                   return (
                                     <TableCell colSpan={management ? 9 : 5} className="text-xs text-muted-foreground italic text-center">
-                                      {hasAnyQuote
+                                      {hasCompletedQuote
                                         ? `Ya se recibió la cotización de ${contractorLabel}`
                                         : `Esperando cotización de ${contractorLabel}`}
                                     </TableCell>
@@ -1742,6 +1743,7 @@ export function ItemsTable({
                               const agQuote = item.quoteItems?.find((q: any) => q.ConstruimosAG);
                               const displayQuote = finalizedQuote || agQuote;
                               const hasAnyQuote = (item.quoteItems?.length ?? 0) > 0;
+                              const hasCompletedQuote = item.quoteItems?.some((q: any) => Number(q.subtotal) > 0) ?? false;
 
                               if (displayQuote) {
                                 let subq: any = displayQuote.subquotations;
@@ -1956,7 +1958,7 @@ export function ItemsTable({
                                 const contractorLabel = item.otherContractorName || item.contractor?.name || "el contratista";
                                 return (
                                   <div className="col-span-2 bg-muted/30 p-2 rounded-md text-xs text-center italic text-muted-foreground">
-                                    {hasAnyQuote
+                                    {hasCompletedQuote
                                       ? `Ya se recibió la cotización de ${contractorLabel}`
                                       : `Esperando cotización de ${contractorLabel}`}
                                   </div>
