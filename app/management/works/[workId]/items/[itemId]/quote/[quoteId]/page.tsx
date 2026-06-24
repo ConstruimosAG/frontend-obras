@@ -471,7 +471,6 @@ export default function ManagementQuoteForm({ params }: ManagementQuoteFormProps
                 </Badge>
               )}
             </div>
-            <p className="text-sm text-muted-foreground truncate">{item.description}</p>
           </div>
         </div>
 
@@ -488,6 +487,18 @@ export default function ManagementQuoteForm({ params }: ManagementQuoteFormProps
               </div>
             </CardHeader>
             <CardContent className="p-6 space-y-5">
+
+              {/* Descripción del ítem */}
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold uppercase text-muted-foreground tracking-wider">
+                  Descripción del Ítem
+                </Label>
+                <p className="text-base sm:text-lg font-semibold text-foreground leading-relaxed whitespace-pre-wrap">
+                  {item.description}
+                </p>
+              </div>
+
+              <Separator />
 
               {/* Contratista (read-only) */}
               {!isAG && (

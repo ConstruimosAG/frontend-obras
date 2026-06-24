@@ -1519,9 +1519,12 @@ export function ItemsTable({
                                     </>
                                   );
                                 } else if (!coordinator && !management) {
+                                  const contractorLabel = item.otherContractorName || item.contractor?.name || "el contratista";
                                   return (
                                     <TableCell colSpan={management ? 9 : 5} className="text-xs text-muted-foreground italic text-center">
-                                      Cotización asignada a contratista
+                                      {hasAnyQuote
+                                        ? `Ya se recibió la cotización de ${contractorLabel}`
+                                        : `Esperando cotización de ${contractorLabel}`}
                                     </TableCell>
                                   );
                                 } else if (management && !hasAnyQuote) {
@@ -1950,9 +1953,12 @@ export function ItemsTable({
                                   </div>
                                 );
                               } else {
+                                const contractorLabel = item.otherContractorName || item.contractor?.name || "el contratista";
                                 return (
                                   <div className="col-span-2 bg-muted/30 p-2 rounded-md text-xs text-center italic text-muted-foreground">
-                                    Cotización asignada a contratista
+                                    {hasAnyQuote
+                                      ? `Ya se recibió la cotización de ${contractorLabel}`
+                                      : `Esperando cotización de ${contractorLabel}`}
                                   </div>
                                 );
                               }
